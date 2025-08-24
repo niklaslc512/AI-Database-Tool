@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # 后端开发服务 (Node.js 22 + Express 5)
+  backend-dev:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+      target: base
+    container_name: ai-database-backend-dev
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=/app/data/ai-database.db
+      - JWT_SECRET=dev-jwt-secret-key
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CORS_ORIGIN=http://localhost:5173
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json
+      - ./backend/tsconfig.json:/app/tsconfig.json
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+      - backend_node_modules:/app/node_modules
+    ports:
+      - "3000:3000"
+    networks:
+      - ai-database-dev-network
+    command: npm run dev
+
+  # 前端开发服务
+  frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile
+      target: builder
+    container_name: ai-database-frontend-dev
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - VITE_API_BASE_URL=http://localhost:3000/api/v1
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/package.json:/app/package.json
+      - ./frontend/vite.config.ts:/app/vite.config.ts
+      - ./frontend/index.html:/app/index.html
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    networks:
+      - ai-database-dev-network
+    command: npm run dev
+    depends_on:
+      - backend-dev
+
+  # 开发环境Redis
+  redis-dev:
+    image: redis:7-alpine
+    container_name: ai-database-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - ai-database-dev-network
+
+networks:
+  ai-database-dev-network:
+    driver: bridge
+
+volumes:
+  backend_node_modules:
+  frontend_node_modules:
+  redis_dev_data:
