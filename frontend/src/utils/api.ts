@@ -1,6 +1,7 @@
 import axios, { type AxiosResponse, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import type { LoginRequest, LoginResponse, User, ErrorResponse, MessageResponse } from '@/types'
 import { ElMessage } from 'element-plus'
+import { ApiLogger } from './logger'
 
 // 扩展axios配置类型
 declare module 'axios' {
@@ -10,6 +11,9 @@ declare module 'axios' {
     }
   }
 }
+
+// 创建API日志记录器实例
+const apiLogger = new ApiLogger()
 
 // 创建axios实例
 const apiClient = axios.create({
@@ -23,6 +27,13 @@ const apiClient = axios.create({
 // 请求拦截器
 apiClient.interceptors.request.use(
   (config) => {
+    // 记录请求开始
+    const startTime = apiLogger.logRequest(
+      config.method?.toUpperCase() || 'GET',
+      config.url || '',
+      config.data
+    )
+    
     // 添加认证token
     const token = localStorage.getItem('token')
     if (token) {
@@ -30,7 +41,7 @@ apiClient.interceptors.request.use(
     }
     
     // 添加请求时间戳
-    config.metadata = { startTime: Date.now() }
+    config.metadata = { startTime }
     
     return config
   },
@@ -42,20 +53,29 @@ apiClient.interceptors.request.use(
 // 响应拦截器
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
-    // 计算请求耗时
-    const endTime = Date.now()
-    const startTime = response.config.metadata?.startTime || endTime
-    const duration = endTime - startTime
-    
-    // 开发环境显示请求信息
-    if (import.meta.env.DEV) {
-      console.log(`[API] ${response.config.method?.toUpperCase()} ${response.config.url} - ${duration}ms`)
-    }
+    // 记录请求成功
+    apiLogger.logSuccess(
+      response.config.method?.toUpperCase() || 'GET',
+      response.config.url || '',
+      response.status,
+      response.config.metadata?.startTime || Date.now(),
+      response.data
+    )
     
     return response
   },
   (error: AxiosError) => {
     const response = error.response
+    
+    // 记录请求失败
+    if (error.config?.metadata?.startTime) {
+      apiLogger.logError(
+        error.config.method?.toUpperCase() || 'GET',
+        error.config.url || '',
+        error.config.metadata.startTime,
+        error
+      )
+    }
     
     if (response) {
       const { status, data } = response

@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
   UserIcon, 
@@ -149,11 +149,13 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import ThemeToggle from '@/components/UI/ThemeToggle.vue'
+import { useLogger } from '@/utils/logger'
 import type { LoginRequest } from '@/types'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const logger = useLogger('LoginPage')
 
 // 响应式数据
 const isLoading = ref(false)
@@ -181,57 +183,101 @@ const isFormValid = computed(() => {
 
 // 验证方法
 const validateUsername = () => {
+  logger.debug('📝 验证用户名输入', { username: loginForm.username })
   errors.username = ''
   if (!loginForm.username) {
     errors.username = '请输入用户名或邮箱'
+    logger.warn('⚠️ 用户名验证失败', { error: '用户名为空' })
   } else if (loginForm.username.length < 3) {
     errors.username = '用户名至少3个字符'
+    logger.warn('⚠️ 用户名验证失败', { error: '用户名太短', length: loginForm.username.length })
   } else if (loginForm.username.length > 50) {
     errors.username = '用户名不能超过50个字符'
+    logger.warn('⚠️ 用户名验证失败', { error: '用户名太长', length: loginForm.username.length })
+  } else {
+    logger.debug('✅ 用户名验证通过')
   }
 }
 
 const validatePassword = () => {
+  logger.debug('🔒 验证密码输入')
   errors.password = ''
   if (!loginForm.password) {
     errors.password = '请输入密码'
+    logger.warn('⚠️ 密码验证失败', { error: '密码为空' })
   } else if (loginForm.password.length < 6) {
     errors.password = '密码至少6个字符'
+    logger.warn('⚠️ 密码验证失败', { error: '密码太短', length: loginForm.password.length })
   } else if (loginForm.password.length > 100) {
     errors.password = '密码不能超过100个字符'
+    logger.warn('⚠️ 密码验证失败', { error: '密码太长', length: loginForm.password.length })
+  } else {
+    logger.debug('✅ 密码验证通过')
   }
 }
 
 // 登录处理
-const handleLogin = async () => {
+const handleLogin = async (): Promise<void> => {
+  const startTime = Date.now()
+  logger.info('🚀 开始用户登录', { username: loginForm.username })
+  
   // 验证表单
+  logger.debug('📝 开始表单验证')
   validateUsername()
   validatePassword()
   
-  if (!isFormValid.value) return
+  if (!isFormValid.value) {
+    logger.warn('⚠️ 表单验证失败，无法提交登录')
+    return
+  }
   
   try {
     isLoading.value = true
     
+    logger.debug('📡 调用登录API')
     await authStore.login({
       ...loginForm,
       rememberMe: rememberMe.value
     })
     
+    logger.info('✅ 登录成功，准备跳转到仪表板')
+    logger.userAction('登录成功', { 
+      username: loginForm.username, 
+      rememberMe: rememberMe.value 
+    })
+    logger.performance('用户登录流程', startTime)
+    
     // 登录成功后跳转
-    router.push('/app/dashboard')
+    logger.navigation('/auth/login', '/app/dashboard')
+    await router.push('/app/dashboard')
     
   } catch (error: any) {
+    logger.error('❌ 登录失败', { 
+      error: error.message, 
+      code: error.code,
+      username: loginForm.username 
+    })
+    
     if (error.code === 'INVALID_CREDENTIALS') {
       errors.username = '用户名或密码错误'
       errors.password = '用户名或密码错误'
+      logger.warn('⚠️ 无效的登录凭证')
     } else {
       errors.username = error.message || '登录失败，请稍后重试'
+      logger.error('❌ 登录系统错误', { error: error.message })
     }
+    
   } finally {
     isLoading.value = false
+    logger.debug('🔄 登录流程完成，耗时: ' + (Date.now() - startTime) + 'ms')
   }
 }
+
+// 页面生命周期
+onMounted(() => {
+  logger.info('📄 登录页面加载完成')
+  logger.debug('🎨 当前主题模式', { theme: themeStore.currentTheme })
+})
 </script>
 
 <style scoped>

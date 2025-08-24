@@ -16,36 +16,86 @@ import {
   PaginatedResult
 } from '../types';
 import { AppError } from '../types';
-import { logger } from '../utils/logger';
+import { BusinessLogger } from '../utils/enhancedLogger';
 
+/**
+ * 用户服务类 - 负责用户账户管理的核心业务逻辑
+ * 
+ * @description 提供用户注册、登录、信息管理等完整功能，支持密码加密、JWT认证、用户状态管理
+ * @author AI数据库团队
+ * @version 1.0.0
+ * @example
+ * ```typescript
+ * const userService = new UserService(database);
+ * const user = await userService.createUser({
+ *   username: '张三',
+ *   email: 'zhangsan@example.com',
+ *   password: 'securePassword123'
+ * });
+ * ```
+ */
 export class UserService {
   private db: Database<sqlite3.Database, sqlite3.Statement>;
   private saltRounds: number;
   private jwtSecret: string;
   private jwtExpiresIn: string;
+  private logger: BusinessLogger;
 
+  /**
+   * 创建UserService实例
+   * 
+   * @param db - SQLite数据库实例
+   */
   constructor(db: Database<sqlite3.Database, sqlite3.Statement>) {
     this.db = db;
     this.saltRounds = parseInt(process.env.BCRYPT_ROUNDS || '12');
     this.jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
     this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
+    this.logger = new BusinessLogger('UserService');
   }
 
   /**
-   * 创建用户
+   * 创建用户账户
+   * 
+   * @description 创建新用户账户，包含完整的数据验证和安全处理
+   * @param userData - 用户创建数据
+   * @param userData.username - 用户名（3-50字符，唯一）
+   * @param userData.email - 邮箱地址（必须有效且唯一）
+   * @param userData.password - 密码（最少6位字符）
+   * @param userData.role - 用户角色（可选，默认为'user'）
+   * @param userData.displayName - 显示名称（可选）
+   * @param userData.settings - 用户设置（可选）
+   * @returns Promise<User> 创建的用户对象（不包含敏感信息）
+   * @throws {AppError} 当用户名或邮箱已存在时抛出400错误
+   * @example
+   * ```typescript
+   * const user = await userService.createUser({
+   *   username: 'zhangsan',
+   *   email: 'zhangsan@example.com',
+   *   password: 'securePassword123',
+   *   displayName: '张三'
+   * });
+   * ```
    */
   async createUser(userData: CreateUserRequest): Promise<User> {
+    const startTime = Date.now();
+    
     try {
+      this.logger.info('🚀 开始创建用户', { username: userData.username });
+      
       // 检查用户名和邮箱是否已存在
+      this.logger.debug('🔍 检查用户名和邮箱是否已存在');
       const existingUser = await this.db.get(`
         SELECT id FROM users WHERE username = ? OR email = ?
       `, userData.username, userData.email);
 
       if (existingUser) {
+        this.logger.warn('⚠️ 用户名或邮箱已存在', { username: userData.username, email: userData.email });
         throw new AppError('用户名或邮箱已存在', 400);
       }
 
       // 生成密码哈希
+      this.logger.debug('🔐 生成密码哈希');
       const salt = await bcrypt.genSalt(this.saltRounds);
       const passwordHash = await bcrypt.hash(userData.password, salt);
 
@@ -73,20 +123,38 @@ export class UserService {
         })
       );
 
-      logger.info(`创建用户成功: ${userData.username}`);
-      return this.getUserById(result.lastID?.toString() || '');
+      const userId = result.lastID?.toString() || '';
+      this.logger.info('✅ 用户创建成功', { userId, username: userData.username });
+      this.logger.performance('创建用户', startTime);
+      
+      return this.getUserById(userId);
     } catch (error) {
-      logger.error('创建用户失败:', error);
+      this.logger.error('❌ 用户创建失败', error as Error, { username: userData.username });
       throw error;
     }
   }
 
   /**
-   * 用户登录
+   * 用户登录认证
+   * 
+   * @description 验证用户凭据并生成JWT令牌，记录登录日志
+   * @param loginData - 登录数据
+   * @param loginData.username - 用户名或邮箱
+   * @param loginData.password - 密码
+   * @param clientInfo - 客户端信息（可选）
+   * @param clientInfo.ip - 客户端IP地址
+   * @param clientInfo.userAgent - 客户端User-Agent
+   * @returns Promise<LoginResponse> 包含用户信息、token和过期时间
+   * @throws {AppError} 当凭据无效或账户被锁定时抛出401错误
    */
   async login(loginData: LoginRequest, clientInfo?: { ip?: string; userAgent?: string }): Promise<LoginResponse> {
+    const startTime = Date.now();
+    
     try {
+      this.logger.info('🚀 开始用户登录', { username: loginData.username, ip: clientInfo?.ip });
+      
       // 查找用户
+      this.logger.debug('🔍 查找用户信息');
       const user = await this.db.get(`
         SELECT * FROM users WHERE username = ? OR email = ?
       `, loginData.username, loginData.username) as any;
@@ -132,7 +200,9 @@ export class UserService {
       const expiresAt = new Date();
       expiresAt.setTime(expiresAt.getTime() + this.parseJwtExpiration(this.jwtExpiresIn));
 
-      logger.info(`用户登录成功: ${user.username}`);
+      this.logger.info('✅ 用户登录成功', { userId: user.id, username: user.username });
+      this.logger.performance('用户登录', startTime);
+      this.logger.userAction(user.id, '登录成功', { ip: clientInfo?.ip, userAgent: clientInfo?.userAgent });
 
       return {
         user: this.sanitizeUser(user),
@@ -140,7 +210,7 @@ export class UserService {
         expiresAt
       };
     } catch (error) {
-      logger.error('用户登录失败:', error);
+      this.logger.error('❌ 用户登录失败', error as Error, { username: loginData.username, ip: clientInfo?.ip });
       throw error;
     }
   }
@@ -214,10 +284,11 @@ export class UserService {
       const updateQuery = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`;
       await this.db.run(updateQuery, ...values);
 
-      logger.info(`更新用户信息成功: ${existingUser.username}`);
+      this.logger.info('✅ 更新用户信息成功', { userId: id, username: existingUser.username });
+      this.logger.userAction(id, '更新用户信息', { updates });
       return this.getUserById(id);
     } catch (error) {
-      logger.error('更新用户信息失败:', error);
+      this.logger.error('❌ 更新用户信息失败', error as Error, { userId: id });
       throw error;
     }
   }
@@ -233,9 +304,10 @@ export class UserService {
       }
 
       await this.db.run('DELETE FROM users WHERE id = ?', id);
-      logger.info(`删除用户成功: ${user.username}`);
+      this.logger.info('✅ 删除用户成功', { userId: id, username: user.username });
+      this.logger.userAction(id, '删除用户', { username: user.username });
     } catch (error) {
-      logger.error('删除用户失败:', error);
+      this.logger.error('❌ 删除用户失败', error as Error, { userId: id });
       throw error;
     }
   }
@@ -291,7 +363,7 @@ export class UserService {
         }
       };
     } catch (error) {
-      logger.error('获取用户列表失败:', error);
+      this.logger.error('❌ 获取用户列表失败', error as Error, { params });
       throw error;
     }
   }
@@ -323,9 +395,12 @@ export class UserService {
         WHERE id = ?
       `, passwordHash, salt, id);
 
-      logger.info(`用户修改密码成功: ${user.username}`);
+      this.logger.info('✅ 用户修改密码成功', { userId: id, username: user.username });
+      this.logger.userAction(id, '修改密码', { username: user.username });
+      this.logger.securityEvent('密码修改', 'medium', { userId: id, username: user.username });
     } catch (error) {
-      logger.error('修改密码失败:', error);
+      this.logger.error('❌ 修改密码失败', error as Error, { userId: id });
+      this.logger.securityEvent('密码修改失败', 'high', { userId: id, error: (error as Error).message });
       throw error;
     }
   }
@@ -356,7 +431,7 @@ export class UserService {
         failureReason || null
       );
     } catch (error) {
-      logger.error('记录登录日志失败:', error);
+      this.logger.error('❌ 记录登录日志失败', error as Error, { username, success });
     }
   }
 

@@ -9,25 +9,42 @@ import {
   User
 } from '../types';
 import { AppError } from '../types';
-import { logger } from '../utils/logger';
+import { BusinessLogger } from '../utils/enhancedLogger';
 
+/**
+ * 授权服务类 - 负责外部授权和令牌管理
+ * 
+ * @description 提供外部授权令牌创建、验证、撤销等功能，支持OAuth和临时访问令牌
+ * @author AI数据库团队
+ * @version 1.0.0
+ */
 export class AuthorizationService {
   private db: Database<sqlite3.Database, sqlite3.Statement>;
   private jwtSecret: string;
+  private logger: BusinessLogger;
 
   constructor(db: Database<sqlite3.Database, sqlite3.Statement>) {
     this.db = db;
     this.jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
+    this.logger = new BusinessLogger('AuthorizationService');
   }
 
   /**
    * 创建外部授权令牌
+   * 
+   * @description 生成新的外部授权令牌，支持OAuth和临时访问
+   * @param authRequest - 授权请求参数
+   * @returns Promise<ExternalAuthResponse> 包含令牌和授权URL
    */
   async createExternalAuth(authRequest: ExternalAuthRequest): Promise<ExternalAuthResponse> {
+    const startTime = Date.now();
+    
     try {
       const { provider, scope, clientInfo, expiresIn = 3600 } = authRequest;
+      this.logger.info('🚀 创建外部授权令牌', { provider, expiresIn, scopeCount: scope?.length });
 
       // 生成授权令牌
+      this.logger.debug('🎫 生成授权令牌');
       const token = this.generateAuthToken();
       const expiresAt = new Date();
       expiresAt.setSeconds(expiresAt.getSeconds() + expiresIn);
@@ -53,7 +70,13 @@ export class AuthorizationService {
         authUrl = `${baseUrl}/auth/external?token=${token}`;
       }
 
-      logger.info(`创建外部授权令牌成功: ${provider} (过期时间: ${expiresAt.toISOString()})`);
+      this.logger.info('✅ 外部授权令牌创建成功', { 
+        tokenId: token.substring(0, 8) + '...', 
+        provider, 
+        expiresAt: expiresAt.toISOString() 
+      });
+      this.logger.performance('创建外部授权令牌', startTime);
+      this.logger.securityEvent('外部授权令牌创建', 'medium', { provider, expiresIn });
 
       return {
         token,
@@ -61,7 +84,7 @@ export class AuthorizationService {
         authUrl: authUrl || ''
       };
     } catch (error) {
-      logger.error('创建外部授权令牌失败:', error);
+      this.logger.error('❌ 创建外部授权令牌失败', error as Error, { provider: authRequest.provider });
       throw error;
     }
   }
@@ -88,18 +111,28 @@ export class AuthorizationService {
       const authToken = this.mapDbTokenToAuthToken(dbToken);
       return { valid: true, authToken };
     } catch (error) {
-      logger.error('验证授权令牌失败:', error);
+      this.logger.error('❌ 验证授权令牌失败', error as Error, { tokenId: token.substring(0, 8) + '...' });
       return { valid: false };
     }
   }
 
   /**
    * 使用授权令牌登录
+   * 
+   * @description 通过外部授权令牌进行用户身份验证和登录
+   * @param token - 授权令牌
+   * @param userId - 用户ID（可选）
+   * @returns Promise 包含用户信息、JWT令牌和过期时间
    */
   async loginWithAuthToken(token: string, userId?: string): Promise<{ user: User; jwtToken: string; expiresAt: Date }> {
+    const startTime = Date.now();
+    
     try {
+      this.logger.info('🚀 开始外部授权登录', { tokenId: token.substring(0, 8) + '...', userId });
+      
       const validation = await this.validateAuthToken(token);
       if (!validation.valid || !validation.authToken) {
+        this.logger.warn('⚠️ 授权令牌无效或已过期', { tokenId: token.substring(0, 8) + '...' });
         throw new AppError('授权令牌无效或已过期', 401);
       }
 
@@ -152,7 +185,17 @@ export class AuthorizationService {
       // 撤销授权令牌（一次性使用）
       this.revokeAuthToken(token);
 
-      logger.info(`外部授权登录成功: ${user.username}`);
+      this.logger.info('✅ 外部授权登录成功', { 
+        userId: user.id, 
+        username: user.username, 
+        authMethod: validation.authToken.tokenType 
+      });
+      this.logger.performance('外部授权登录', startTime);
+      this.logger.userAction(user.id, '外部授权登录', { 
+        authMethod: validation.authToken.tokenType,
+        tokenType: validation.authToken.tokenType
+      });
+      this.logger.securityEvent('外部授权登录成功', 'low', { userId: user.id, method: validation.authToken.tokenType });
 
       return {
         user: this.mapDbUserToUser(user),
@@ -160,7 +203,8 @@ export class AuthorizationService {
         expiresAt: jwtExpiresAt
       };
     } catch (error) {
-      logger.error('外部授权登录失败:', error);
+      this.logger.error('❌ 外部授权登录失败', error as Error, { tokenId: token.substring(0, 8) + '...', userId });
+      this.logger.securityEvent('外部授权登录失败', 'high', { error: (error as Error).message, tokenId: token.substring(0, 8) + '...' });
       throw error;
     }
   }
@@ -177,10 +221,11 @@ export class AuthorizationService {
       `, token);
 
       if ((result.changes || 0) > 0) {
-        logger.info(`撤销授权令牌成功: ${token.substring(0, 8)}...`);
+        this.logger.info('✅ 撤销授权令牌成功', { tokenId: token.substring(0, 8) + '...' });
+        this.logger.securityEvent('授权令牌撤销', 'medium', { tokenId: token.substring(0, 8) + '...' });
       }
     } catch (error) {
-      logger.error('撤销授权令牌失败:', error);
+      this.logger.error('❌ 撤销授权令牌失败', error as Error, { tokenId: token.substring(0, 8) + '...' });
       throw error;
     }
   }
@@ -198,7 +243,7 @@ export class AuthorizationService {
 
       return tokens.map(token => this.mapDbTokenToAuthToken(token));
     } catch (error) {
-      logger.error('获取用户授权令牌列表失败:', error);
+      this.logger.error('❌ 获取用户授权令牌列表失败', error as Error, { userId });
       throw error;
     }
   }
@@ -214,10 +259,10 @@ export class AuthorizationService {
         OR is_revoked = TRUE
       `);
 
-      logger.info(`清理过期授权令牌: ${result.changes} 个`);
+      this.logger.info('🗑️ 清理过期授权令牌完成', { deletedCount: result.changes });
       return result.changes || 0;
     } catch (error) {
-      logger.error('清理过期授权令牌失败:', error);
+      this.logger.error('❌ 清理过期授权令牌失败', error as Error);
       throw error;
     }
   }
@@ -257,7 +302,7 @@ export class AuthorizationService {
         byType
       };
     } catch (error) {
-      logger.error('获取授权统计信息失败:', error);
+      this.logger.error('❌ 获取授权统计信息失败', error as Error);
       throw error;
     }
   }
@@ -291,7 +336,7 @@ export class AuthorizationService {
         ) VALUES (?, ?, ?, ?)
       `, userId, username, method, success);
     } catch (error) {
-      logger.error('记录外部登录日志失败:', error);
+      this.logger.error('❌ 记录外部登录日志失败', error as Error, { userId, username, method });
     }
   }
 
