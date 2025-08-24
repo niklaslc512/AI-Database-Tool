@@ -2,6 +2,41 @@
 
 一个由大模型驱动的通用数据库管理系统，支持通过自然语言进行数据库查询和管理操作。
 
+## 🆕 最新更新
+
+### v1.1.0 - API响应标准化 🎆
+
+我们刚刚完成了一次重大的API响应格式标准化改造，提升了系统的简洁性和性能：
+
+**主要改进**:
+- ✨ **简化响应格式**: 移除了冗余的`success`字段和外层`data`包装
+- ⚡ **直接数据返回**: 成功响应直接返回数据对象/数组
+- 🛡️ **标准化错误处理**: 统一的错误响应格式 `{message, timestamp, path}`
+- 🚀 **性能优化**: 响应体积减少，处理速度提升
+- 👨‍💻 **开发体验提升**: 代码更简洁，类型安全性更强
+
+**响应格式示例**:
+```json
+// 成功响应（有数据）
+{
+  "id": "user123",
+  "username": "admin",
+  "email": "admin@example.com"
+}
+
+// 成功响应（操作确认）
+{"message": "操作成功"}
+
+// 错误响应
+{
+  "message": "用户名和密码不能为空",
+  "timestamp": "2025-08-24T06:41:29.056Z",
+  "path": "/api/v1/users/auth/login"
+}
+```
+
+> ⚠️ **破坏性更新**: 此版本与旧版本不兼容，客户端需要同时更新。
+
 ## 🚀 项目概述
 
 本项目旨在构建一个智能化的数据库管理平台，用户可以通过自然语言描述需求，AI自动生成相应的SQL语句并执行数据库操作。系统采用前后端分离架构，支持多种类型的数据库连接和管理。
@@ -14,6 +49,8 @@
 - **🛠️ 表结构管理**: AI辅助的数据库表创建、修改和删除操作
 - **🔒 安全审计**: 操作权限控制和完整的审计日志
 - **📱 现代化界面**: 基于Vue3的响应式Web界面
+- **⚡ 标准化API**: 简洁统一的RESTful API响应格式，更高效的数据传输
+- **🛡️ 类型安全**: 完整的TypeScript类型定义，开发时错误检查
 
 ### 🏗️ 技术架构
 
@@ -56,20 +93,29 @@
 - **认证**: JWT
 - **日志**: Winston
 - **文档**: Swagger
+- **API规范**: RESTful API + 标准化响应格式
 
 ### AI集成
 - **大模型**: 支持OpenAI GPT、Claude等主流大模型
 - **自然语言处理**: 意图识别和SQL生成
 - **智能优化**: 查询性能分析和优化建议
 
-## 📋 实施计划
+## 📋 实施进度
+
+### ✅ Phase 0: API响应标准化 (Week 0) - 已完成
+- [x] API响应格式标准化设计
+- [x] 后端路由层改造（auth, users, apiKeys）
+- [x] 后端错误处理中间件标准化
+- [x] 前端API工具类和Store层适配
+- [x] TypeScript类型定义重构
+- [x] 全面测试验证和文档更新
 
 ### Phase 1: 基础架构搭建 (Week 1-2)
 - [x] 项目初始化和目录结构
-- [ ] 后端Express框架搭建
-- [ ] 前端Vue3项目初始化
-- [ ] SQLite数据库设计
-- [ ] 基础API接口设计
+- [x] 后端Express框架搭建
+- [x] 前端Vue3项目初始化
+- [x] SQLite数据库设计
+- [x] 基础API接口设计
 
 ### Phase 2: 核心功能开发 (Week 3-4)
 - [ ] 数据库连接管理
@@ -93,6 +139,11 @@
 - [ ] 文档完善
 
 ## 🚀 快速开始
+
+> ⚠️ **重要提示**: 如果您之前使用过本项目，请注意我们在v1.1.0中对API响应格式进行了标准化改造。这是一个**破坏性更新**，客户端代码需要相应调整。
+> 
+> 📚 **迁移指南**: [API_MIGRATION_GUIDE.md](API_MIGRATION_GUIDE.md)  
+> 📊 **完整报告**: [API_STANDARDIZATION_REPORT.md](API_STANDARDIZATION_REPORT.md)
 
 ### 使用脚本（推荐）
 
@@ -174,6 +225,65 @@ npm run dev
 - **部署检查**: `scripts/production-check.sh` - 生产环境验证
 
 详细使用说明请查看：[scripts/README.md](scripts/README.md)
+
+## 📚 API使用示例
+
+### ✅ 成功响应示例
+
+**用户登录**（数据响应）：
+```bash
+curl -X POST http://localhost:3000/api/v1/users/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123456"}'
+```
+
+```json
+{
+  "user": {
+    "id": "1",
+    "username": "admin",
+    "email": "admin@example.com",
+    "role": "admin"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "expiresAt": "2025-08-25T06:41:10.724Z"
+}
+```
+
+**密码修改**（操作确认）：
+```bash
+curl -X PUT http://localhost:3000/api/v1/users/me/password \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"oldPassword":"old123","newPassword":"new123"}'
+```
+
+```json
+{"message": "密码修改成功"}
+```
+
+### ❌ 错误响应示例
+
+**登录失败**：
+```bash
+curl -X POST http://localhost:3000/api/v1/users/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"wrongpassword"}'
+```
+
+```json
+{
+  "message": "用户名或密码错误",
+  "timestamp": "2025-08-24T06:40:19.757Z",
+  "path": "/api/v1/users/auth/login"
+}
+```
+
+> 💡 **新API格式特点**：
+> - ✅ 成功响应直接返回数据，无冗余字段
+> - ⚡ 响应体积更小，传输更高效  
+> - 🛡️ 错误信息标准化，包含时间戳和路径
+> - 🔢 使用HTTP状态码表示成功/失败状态
 
 ## 📖 使用示例
 

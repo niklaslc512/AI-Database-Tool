@@ -316,14 +316,21 @@ export interface LoginLog {
 }
 
 /**
- * API响应格式
+ * 操作确认响应类型
  */
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  error?: string;
+export interface MessageResponse {
+  message: string;
+}
+
+/**
+ * 错误响应类型
+ */
+export interface ErrorResponse {
+  message: string;
   timestamp: string;
+  path: string;
+  error?: string;
+  stack?: string;
 }
 
 /**
@@ -397,13 +404,20 @@ export interface AIConfig {
  * 错误类型
  */
 export class AppError extends Error {
-  public statusCode: number;
-  public isOperational: boolean;
+  public readonly statusCode: number;
+  public readonly isOperational: boolean;
+  public readonly path: string | undefined;
 
-  constructor(message: string, statusCode: number = 500, isOperational: boolean = true) {
+  constructor(
+    message: string, 
+    statusCode: number = 500, 
+    isOperational: boolean = true,
+    path?: string
+  ) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
+    this.path = path;
 
     Error.captureStackTrace(this, this.constructor);
   }

@@ -38,31 +38,27 @@ export const useAuthStore = defineStore('auth', () => {
       
       const response = await api.post<LoginResponse>('/users/auth/login', credentials)
       
-      if (response.success && response.data) {
-        const { user: userData, token: userToken, refreshToken: userRefreshToken, expiresAt } = response.data
-        
-        // 保存用户信息和token
-        user.value = userData
-        token.value = userToken
-        refreshToken.value = userRefreshToken || null
-        isAuthenticated.value = true
-        
-        // 持久化存储
-        localStorage.setItem('token', userToken)
-        localStorage.setItem('user', JSON.stringify(userData))
-        
-        if (userRefreshToken) {
-          localStorage.setItem('refreshToken', userRefreshToken)
-        }
-        
-        if (credentials.rememberMe) {
-          localStorage.setItem('rememberMe', 'true')
-        }
-        
-        return response.data
-      } else {
-        throw new Error(response.message || '登录失败')
+      const { user: userData, token: userToken, refreshToken: userRefreshToken, expiresAt } = response
+      
+      // 保存用户信息和token
+      user.value = userData
+      token.value = userToken
+      refreshToken.value = userRefreshToken || null
+      isAuthenticated.value = true
+      
+      // 持久化存储
+      localStorage.setItem('token', userToken)
+      localStorage.setItem('user', JSON.stringify(userData))
+      
+      if (userRefreshToken) {
+        localStorage.setItem('refreshToken', userRefreshToken)
       }
+      
+      if (credentials.rememberMe) {
+        localStorage.setItem('rememberMe', 'true')
+      }
+      
+      return response
     } catch (error: any) {
       console.error('登录失败:', error)
       if (error.response?.status === 401) {
@@ -96,17 +92,13 @@ export const useAuthStore = defineStore('auth', () => {
 
       const response = await api.get<User>('/users/me')
       
-      if (response.success && response.data) {
-        user.value = response.data
-        isAuthenticated.value = true
-        
-        // 更新本地存储
-        localStorage.setItem('user', JSON.stringify(response.data))
-        
-        return response.data
-      } else {
-        throw new Error(response.message || '获取用户信息失败')
-      }
+      user.value = response
+      isAuthenticated.value = true
+      
+      // 更新本地存储
+      localStorage.setItem('user', JSON.stringify(response))
+      
+      return response
     } catch (error) {
       console.error('获取用户信息失败:', error)
       clearAuth()
@@ -120,13 +112,9 @@ export const useAuthStore = defineStore('auth', () => {
       
       const response = await api.put<User>('/users/me', profileData)
       
-      if (response.success && response.data) {
-        user.value = response.data
-        localStorage.setItem('user', JSON.stringify(user.value))
-        return response.data
-      } else {
-        throw new Error(response.message || '更新个人资料失败')
-      }
+      user.value = response
+      localStorage.setItem('user', JSON.stringify(user.value))
+      return response
     } catch (error) {
       console.error('更新个人资料失败:', error)
       throw error
@@ -138,12 +126,7 @@ export const useAuthStore = defineStore('auth', () => {
   const changePassword = async (passwordData: ChangePasswordRequest): Promise<void> => {
     try {
       loading.value = true
-      
-      const response = await api.put('/users/me/password', passwordData)
-      
-      if (!response.success) {
-        throw new Error(response.message || '修改密码失败')
-      }
+      await api.put('/users/me/password', passwordData)
     } catch (error) {
       console.error('修改密码失败:', error)
       throw error
@@ -156,9 +139,7 @@ export const useAuthStore = defineStore('auth', () => {
   const loadApiKeys = async (): Promise<void> => {
     try {
       const response = await api.get<ApiKey[]>('/api-keys')
-      if (response.success && response.data) {
-        apiKeys.value = response.data
-      }
+      apiKeys.value = response
     } catch (error) {
       console.error('加载API密钥失败:', error)
       throw error
@@ -170,12 +151,8 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true
       const response = await api.post<{ apiKey: ApiKey; secret: string }>('/api-keys', keyData)
       
-      if (response.success && response.data) {
-        apiKeys.value.unshift(response.data.apiKey)
-        return response.data
-      } else {
-        throw new Error(response.message || '创建API密钥失败')
-      }
+      apiKeys.value.unshift(response.apiKey)
+      return response
     } catch (error) {
       console.error('创建API密钥失败:', error)
       throw error
@@ -188,15 +165,11 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await api.put<ApiKey>(`/api-keys/${keyId}`, updateData)
       
-      if (response.success && response.data) {
-        const index = apiKeys.value.findIndex(key => key.id === keyId)
-        if (index !== -1) {
-          apiKeys.value[index] = response.data
-        }
-        return response.data
-      } else {
-        throw new Error(response.message || '更新API密钥失败')
+      const index = apiKeys.value.findIndex(key => key.id === keyId)
+      if (index !== -1) {
+        apiKeys.value[index] = response
       }
+      return response
     } catch (error) {
       console.error('更新API密钥失败:', error)
       throw error
@@ -205,13 +178,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const deleteApiKey = async (keyId: string): Promise<void> => {
     try {
-      const response = await api.delete(`/api-keys/${keyId}`)
-      
-      if (response.success) {
-        apiKeys.value = apiKeys.value.filter(key => key.id !== keyId)
-      } else {
-        throw new Error(response.message || '删除API密钥失败')
-      }
+      await api.delete(`/api-keys/${keyId}`)
+      apiKeys.value = apiKeys.value.filter(key => key.id !== keyId)
     } catch (error) {
       console.error('删除API密钥失败:', error)
       throw error
@@ -222,12 +190,7 @@ export const useAuthStore = defineStore('auth', () => {
   const createExternalAuth = async (authData: ExternalAuthRequest): Promise<{ token: string; expiresAt: string; authUrl?: string }> => {
     try {
       const response = await api.post<{ token: string; expiresAt: string; authUrl?: string }>('/auth/external/create', authData)
-      
-      if (response.success && response.data) {
-        return response.data
-      } else {
-        throw new Error(response.message || '创建外部授权失败')
-      }
+      return response
     } catch (error) {
       console.error('创建外部授权失败:', error)
       throw error
@@ -238,22 +201,18 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await api.post<LoginResponse>('/auth/external/login', { token, userId })
       
-      if (response.success && response.data) {
-        const { user: userData, jwtToken, expiresAt } = response.data
-        
-        // 保存用户信息和token
-        user.value = userData
-        token.value = jwtToken
-        isAuthenticated.value = true
-        
-        // 持久化存储
-        localStorage.setItem('token', jwtToken)
-        localStorage.setItem('user', JSON.stringify(userData))
-        
-        return response.data
-      } else {
-        throw new Error(response.message || '外部授权登录失败')
-      }
+      const { user: userData, jwtToken, expiresAt } = response
+      
+      // 保存用户信息和token
+      user.value = userData
+      token.value = jwtToken
+      isAuthenticated.value = true
+      
+      // 持久化存储
+      localStorage.setItem('token', jwtToken)
+      localStorage.setItem('user', JSON.stringify(userData))
+      
+      return response
     } catch (error) {
       console.error('外部授权登录失败:', error)
       throw error
@@ -263,9 +222,7 @@ export const useAuthStore = defineStore('auth', () => {
   const loadAuthTokens = async (): Promise<void> => {
     try {
       const response = await api.get<AuthorizationToken[]>('/auth/external/tokens')
-      if (response.success && response.data) {
-        authTokens.value = response.data
-      }
+      authTokens.value = response
     } catch (error) {
       console.error('加载授权令牌失败:', error)
       throw error

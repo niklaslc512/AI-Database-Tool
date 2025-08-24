@@ -3,7 +3,7 @@ import { Database } from 'sqlite';
 import sqlite3 from 'sqlite3';
 import { AuthorizationService } from '../services/AuthorizationService';
 import { createAuthMiddleware } from '../middleware/auth';
-import { ApiResponse } from '../types';
+import { AppError } from '../types';
 import { logger } from '../utils/logger';
 
 export function createAuthRoutes(db: Database<sqlite3.Database, sqlite3.Statement>): Router {
@@ -20,19 +20,11 @@ export function createAuthRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
         const { provider = 'temporary', scope, clientInfo, expiresIn = 3600 } = req.body;
 
         if (!['oauth', 'temporary'].includes(provider)) {
-          res.status(400).json({
-            success: false,
-            message: '不支持的授权类型'
-          } as ApiResponse);
-          return;
+          throw new AppError('不支持的授权类型', 400, true, req.url);
         }
 
         if (expiresIn > 86400) { // 最长24小时
-          res.status(400).json({
-            success: false,
-            message: '授权令牌有效期不能超过24小时'
-          } as ApiResponse);
-          return;
+          throw new AppError('授权令牌有效期不能超过24小时', 400, true, req.url);
         }
 
         const result = await authorizationService.createExternalAuth({
@@ -42,18 +34,10 @@ export function createAuthRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
           expiresIn
         });
 
-        res.status(201).json({
-          success: true,
-          data: result,
-          message: '创建授权令牌成功'
-        } as ApiResponse);
+        res.status(201).json(result);
 
       } catch (error: any) {
-        logger.error('创建外部授权令牌失败:', error);
-        res.status(500).json({
-          success: false,
-          message: error.message || '创建授权令牌失败'
-        } as ApiResponse);
+        throw new AppError(error.message || '创建授权令牌失败', 500, true, req.url);
       }
     }
   );
@@ -64,38 +48,22 @@ export function createAuthRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
       const { token } = req.body;
 
       if (!token) {
-        res.status(400).json({
-          success: false,
-          message: '授权令牌不能为空'
-        } as ApiResponse);
-        return;
+        throw new AppError('授权令牌不能为空', 400, true, req.url);
       }
 
       const validation = await authorizationService.validateAuthToken(token);
 
       if (!validation.valid) {
-        res.status(401).json({
-          success: false,
-          message: '授权令牌无效或已过期'
-        } as ApiResponse);
-        return;
+        throw new AppError('授权令牌无效或已过期', 401, true, req.url);
       }
 
       res.json({
-        success: true,
-        data: {
-          valid: true,
-          token: validation.authToken
-        },
-        message: '授权令牌验证成功'
-      } as ApiResponse);
+        valid: true,
+        token: validation.authToken
+      });
 
     } catch (error: any) {
-      logger.error('验证授权令牌失败:', error);
-      res.status(500).json({
-        success: false,
-        message: error.message || '验证授权令牌失败'
-      } as ApiResponse);
+      throw new AppError(error.message || '验证授权令牌失败', 500, true, req.url);
     }
   });
 
@@ -105,27 +73,15 @@ export function createAuthRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
       const { token, userId } = req.body;
 
       if (!token) {
-        res.status(400).json({
-          success: false,
-          message: '授权令牌不能为空'
-        } as ApiResponse);
-        return;
+        throw new AppError('授权令牌不能为空', 400, true, req.url);
       }
 
       const result = await authorizationService.loginWithAuthToken(token, userId);
 
-      res.json({
-        success: true,
-        data: result,
-        message: '外部授权登录成功'
-      } as ApiResponse);
+      res.json(result);
 
     } catch (error: any) {
-      logger.error('外部授权登录失败:', error);
-      res.status(401).json({
-        success: false,
-        message: error.message || '外部授权登录失败'
-      } as ApiResponse);
+      throw new AppError(error.message || '外部授权登录失败', 401, true, req.url);
     }
   });
 
@@ -137,26 +93,15 @@ export function createAuthRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
         const { token } = req.body;
 
         if (!token) {
-          res.status(400).json({
-            success: false,
-            message: '授权令牌不能为空'
-          } as ApiResponse);
-          return;
+          throw new AppError('授权令牌不能为空', 400, true, req.url);
         }
 
         await authorizationService.revokeAuthToken(token);
 
-        res.json({
-          success: true,
-          message: '撤销授权令牌成功'
-        } as ApiResponse);
+        res.json({ message: '撤销授权令牌成功' });
 
       } catch (error: any) {
-        logger.error('撤销授权令牌失败:', error);
-        res.status(500).json({
-          success: false,
-          message: error.message || '撤销授权令牌失败'
-        } as ApiResponse);
+        throw new AppError(error.message || '撤销授权令牌失败', 500, true, req.url);
       }
     }
   );
@@ -167,19 +112,9 @@ export function createAuthRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
     async (req, res) => {
       try {
         const tokens = await authorizationService.getUserAuthTokens(req.user!.id);
-
-        res.json({
-          success: true,
-          data: tokens,
-          message: '获取授权令牌列表成功'
-        } as ApiResponse);
-
+        res.json(tokens);
       } catch (error: any) {
-        logger.error('获取授权令牌列表失败:', error);
-        res.status(500).json({
-          success: false,
-          message: error.message || '获取授权令牌列表失败'
-        } as ApiResponse);
+        throw new AppError(error.message || '获取授权令牌列表失败', 500, true, req.url);
       }
     }
   );
@@ -193,27 +128,13 @@ export function createAuthRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
         const { scope = ['read'], expiresIn = 3600 } = req.body;
 
         if (expiresIn > 86400) { // 最长24小时
-          res.status(400).json({
-            success: false,
-            message: '临时令牌有效期不能超过24小时'
-          } as ApiResponse);
-          return;
+          throw new AppError('临时令牌有效期不能超过24小时', 400, true, req.url);
         }
 
         const result = await authorizationService.createTempToken(scope, expiresIn);
-
-        res.status(201).json({
-          success: true,
-          data: result,
-          message: '创建临时访问令牌成功'
-        } as ApiResponse);
-
+        res.status(201).json(result);
       } catch (error: any) {
-        logger.error('创建临时访问令牌失败:', error);
-        res.status(500).json({
-          success: false,
-          message: error.message || '创建临时访问令牌失败'
-        } as ApiResponse);
+        throw new AppError(error.message || '创建临时访问令牌失败', 500, true, req.url);
       }
     }
   );
@@ -225,19 +146,9 @@ export function createAuthRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
     async (req, res) => {
       try {
         const stats = await authorizationService.getAuthStats();
-
-        res.json({
-          success: true,
-          data: stats,
-          message: '获取授权统计信息成功'
-        } as ApiResponse);
-
+        res.json(stats);
       } catch (error: any) {
-        logger.error('获取授权统计信息失败:', error);
-        res.status(500).json({
-          success: false,
-          message: error.message || '获取授权统计信息失败'
-        } as ApiResponse);
+        throw new AppError(error.message || '获取授权统计信息失败', 500, true, req.url);
       }
     }
   );
@@ -249,19 +160,12 @@ export function createAuthRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
     async (req, res) => {
       try {
         const cleanedCount = await authorizationService.cleanupExpiredTokens();
-
-        res.json({
-          success: true,
-          data: { cleanedCount },
+        res.json({ 
+          cleanedCount,
           message: `清理了 ${cleanedCount} 个过期的授权令牌`
-        } as ApiResponse);
-
+        });
       } catch (error: any) {
-        logger.error('清理过期授权令牌失败:', error);
-        res.status(500).json({
-          success: false,
-          message: error.message || '清理过期授权令牌失败'
-        } as ApiResponse);
+        throw new AppError(error.message || '清理过期授权令牌失败', 500, true, req.url);
       }
     }
   );

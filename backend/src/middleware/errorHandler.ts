@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../types';
 import { logger } from '../utils/logger';
+import { createErrorResponse } from '../utils/response';
 
 /**
  * 全局错误处理中间件
@@ -68,17 +69,13 @@ export const errorHandler = (
     });
   }
 
-  // 开发环境返回详细错误信息
-  const errorResponse = {
-    success: false,
+  // 创建标准化错误响应
+  const errorResponse = createErrorResponse(
     message,
-    timestamp: new Date().toISOString(),
-    path: req.url,
-    ...(process.env.NODE_ENV === 'development' && {
-      error: error.message,
-      stack: error.stack
-    })
-  };
+    req.url,
+    error.message,
+    error.stack
+  );
 
   res.status(statusCode).json(errorResponse);
 };

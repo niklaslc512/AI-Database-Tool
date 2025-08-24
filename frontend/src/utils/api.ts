@@ -1,6 +1,15 @@
-import axios, { type AxiosResponse, type AxiosError } from 'axios'
-import type { ApiResponse, LoginRequest, LoginResponse, User } from '@/types'
+import axios, { type AxiosResponse, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import type { LoginRequest, LoginResponse, User, ErrorResponse, MessageResponse } from '@/types'
 import { ElMessage } from 'element-plus'
+
+// 扩展axios配置类型
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    metadata?: {
+      startTime: number
+    }
+  }
+}
 
 // 创建axios实例
 const apiClient = axios.create({
@@ -94,131 +103,131 @@ apiClient.interceptors.response.use(
 // API方法
 export const api = {
   // 通用GET请求
-  get: <T = any>(url: string, params?: any): Promise<ApiResponse<T>> =>
+  get: <T = any>(url: string, params?: any): Promise<T> =>
     apiClient.get(url, { params }).then(res => res.data),
     
   // 通用POST请求
-  post: <T = any>(url: string, data?: any): Promise<ApiResponse<T>> =>
+  post: <T = any>(url: string, data?: any): Promise<T> =>
     apiClient.post(url, data).then(res => res.data),
     
   // 通用PUT请求
-  put: <T = any>(url: string, data?: any): Promise<ApiResponse<T>> =>
+  put: <T = any>(url: string, data?: any): Promise<T> =>
     apiClient.put(url, data).then(res => res.data),
     
   // 通用DELETE请求
-  delete: <T = any>(url: string): Promise<ApiResponse<T>> =>
+  delete: <T = any>(url: string): Promise<T> =>
     apiClient.delete(url).then(res => res.data),
     
   // 通用PATCH请求
-  patch: <T = any>(url: string, data?: any): Promise<ApiResponse<T>> =>
+  patch: <T = any>(url: string, data?: any): Promise<T> =>
     apiClient.patch(url, data).then(res => res.data)
 }
 
 // 认证相关API
 export const authApi = {
   // 登录
-  login: (credentials: LoginRequest): Promise<ApiResponse<LoginResponse>> =>
-    api.post('/auth/login', credentials),
+  login: (credentials: LoginRequest): Promise<LoginResponse> =>
+    api.post('/users/auth/login', credentials),
     
   // 注册
-  register: (userData: any): Promise<ApiResponse<User>> =>
-    api.post('/auth/register', userData),
+  register: (userData: any): Promise<User> =>
+    api.post('/users', userData),
     
   // 登出
-  logout: (): Promise<ApiResponse> =>
+  logout: (): Promise<MessageResponse> =>
     api.post('/auth/logout'),
     
   // 获取当前用户
-  getCurrentUser: (): Promise<ApiResponse<User>> =>
-    api.get('/auth/me'),
+  getCurrentUser: (): Promise<User> =>
+    api.get('/users/me'),
     
   // 更新个人资料
-  updateProfile: (data: Partial<User>): Promise<ApiResponse<User>> =>
-    api.put('/auth/profile', data),
+  updateProfile: (data: Partial<User>): Promise<User> =>
+    api.put('/users/me', data),
     
   // 修改密码
-  changePassword: (data: { oldPassword: string; newPassword: string }): Promise<ApiResponse> =>
-    api.post('/auth/change-password', data),
+  changePassword: (data: { oldPassword: string; newPassword: string }): Promise<MessageResponse> =>
+    api.put('/users/me/password', data),
     
   // 刷新token
-  refreshToken: (): Promise<ApiResponse<{ token: string }>> =>
+  refreshToken: (): Promise<{ token: string }> =>
     api.post('/auth/refresh')
 }
 
 // 数据库连接相关API
 export const connectionApi = {
   // 获取连接列表
-  getConnections: (): Promise<ApiResponse> =>
+  getConnections: (): Promise<any> =>
     api.get('/connections'),
     
   // 创建连接
-  createConnection: (data: any): Promise<ApiResponse> =>
+  createConnection: (data: any): Promise<any> =>
     api.post('/connections', data),
     
   // 更新连接
-  updateConnection: (id: string, data: any): Promise<ApiResponse> =>
+  updateConnection: (id: string, data: any): Promise<any> =>
     api.put(`/connections/${id}`, data),
     
   // 删除连接
-  deleteConnection: (id: string): Promise<ApiResponse> =>
+  deleteConnection: (id: string): Promise<MessageResponse> =>
     api.delete(`/connections/${id}`),
     
   // 测试连接
-  testConnection: (data: any): Promise<ApiResponse> =>
+  testConnection: (data: any): Promise<any> =>
     api.post('/connections/test', data),
     
   // 获取数据库列表
-  getDatabases: (connectionId: string): Promise<ApiResponse> =>
+  getDatabases: (connectionId: string): Promise<any> =>
     api.get(`/connections/${connectionId}/databases`),
     
   // 获取表列表
-  getTables: (connectionId: string, database?: string): Promise<ApiResponse> =>
+  getTables: (connectionId: string, database?: string): Promise<any> =>
     api.get(`/connections/${connectionId}/tables`, { database }),
     
   // 获取表结构
-  getTableSchema: (connectionId: string, tableName: string): Promise<ApiResponse> =>
+  getTableSchema: (connectionId: string, tableName: string): Promise<any> =>
     api.get(`/connections/${connectionId}/tables/${tableName}/schema`)
 }
 
 // 查询相关API
 export const queryApi = {
   // 执行SQL查询
-  executeQuery: (connectionId: string, sql: string): Promise<ApiResponse> =>
+  executeQuery: (connectionId: string, sql: string): Promise<any> =>
     api.post(`/query/${connectionId}/execute`, { sql }),
     
   // AI自然语言查询
-  naturalQuery: (connectionId: string, naturalQuery: string): Promise<ApiResponse> =>
+  naturalQuery: (connectionId: string, naturalQuery: string): Promise<any> =>
     api.post(`/query/${connectionId}/natural`, { naturalQuery }),
     
   // 获取查询历史
-  getQueryHistory: (connectionId?: string): Promise<ApiResponse> =>
+  getQueryHistory: (connectionId?: string): Promise<any> =>
     api.get('/query/history', { connectionId }),
     
   // 保存查询
-  saveQuery: (data: any): Promise<ApiResponse> =>
+  saveQuery: (data: any): Promise<any> =>
     api.post('/query/save', data),
     
   // 获取保存的查询
-  getSavedQueries: (): Promise<ApiResponse> =>
+  getSavedQueries: (): Promise<any> =>
     api.get('/query/saved')
 }
 
 // AI相关API
 export const aiApi = {
   // 生成SQL
-  generateSQL: (data: any): Promise<ApiResponse> =>
+  generateSQL: (data: any): Promise<any> =>
     api.post('/ai/generate-sql', data),
     
   // SQL解释
-  explainSQL: (sql: string): Promise<ApiResponse> =>
+  explainSQL: (sql: string): Promise<any> =>
     api.post('/ai/explain-sql', { sql }),
     
   // SQL优化建议
-  optimizeSQL: (sql: string): Promise<ApiResponse> =>
+  optimizeSQL: (sql: string): Promise<any> =>
     api.post('/ai/optimize-sql', { sql }),
     
   // 表结构建议
-  suggestTableStructure: (description: string): Promise<ApiResponse> =>
+  suggestTableStructure: (description: string): Promise<any> =>
     api.post('/ai/suggest-table', { description })
 }
 

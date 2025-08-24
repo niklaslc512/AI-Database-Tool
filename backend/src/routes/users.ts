@@ -3,7 +3,7 @@ import { Database } from 'sqlite';
 import sqlite3 from 'sqlite3';
 import { UserService } from '../services/UserService';
 import { createAuthMiddleware } from '../middleware/auth';
-import { ApiResponse, UserRole, UserStatus } from '../types';
+import { AppError, UserRole, UserStatus } from '../types';
 import { logger } from '../utils/logger';
 
 export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statement>): Router {
@@ -17,11 +17,7 @@ export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
       const { username, password, rememberMe } = req.body;
       
       if (!username || !password) {
-        res.status(400).json({
-          success: false,
-          message: '用户名和密码不能为空'
-        } as ApiResponse);
-        return;
+        throw new AppError('用户名和密码不能为空', 400, true, req.url);
       }
 
       const clientInfo: { ip?: string; userAgent?: string } = {};
@@ -37,18 +33,10 @@ export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
         clientInfo
       );
 
-      res.json({
-        success: true,
-        data: result,
-        message: '登录成功'
-      } as ApiResponse);
+      res.json(result);
 
     } catch (error: any) {
-      logger.error('用户登录失败:', error);
-      res.status(401).json({
-        success: false,
-        message: error.message || '登录失败'
-      } as ApiResponse);
+      throw new AppError(error.message || '登录失败', 401, true, req.url);
     }
   });
 
@@ -56,19 +44,9 @@ export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
   router.get('/me', authMiddleware.authenticate, async (req, res) => {
     try {
       const user = await userService.getUserById(req.user!.id);
-      
-      res.json({
-        success: true,
-        data: user,
-        message: '获取用户信息成功'
-      } as ApiResponse);
-
+      res.json(user);
     } catch (error: any) {
-      logger.error('获取用户信息失败:', error);
-      res.status(500).json({
-        success: false,
-        message: error.message || '获取用户信息失败'
-      } as ApiResponse);
+      throw new AppError(error.message || '获取用户信息失败', 500, true, req.url);
     }
   });
 
@@ -83,18 +61,9 @@ export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
         settings
       });
 
-      res.json({
-        success: true,
-        data: updatedUser,
-        message: '更新用户信息成功'
-      } as ApiResponse);
-
+      res.json(updatedUser);
     } catch (error: any) {
-      logger.error('更新用户信息失败:', error);
-      res.status(500).json({
-        success: false,
-        message: error.message || '更新用户信息失败'
-      } as ApiResponse);
+      throw new AppError(error.message || '更新用户信息失败', 500, true, req.url);
     }
   });
 
@@ -104,34 +73,18 @@ export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
       const { oldPassword, newPassword } = req.body;
       
       if (!oldPassword || !newPassword) {
-        res.status(400).json({
-          success: false,
-          message: '原密码和新密码不能为空'
-        } as ApiResponse);
-        return;
+        throw new AppError('原密码和新密码不能为空', 400, true, req.url);
       }
 
       if (newPassword.length < 6) {
-        res.status(400).json({
-          success: false,
-          message: '新密码至少6个字符'
-        } as ApiResponse);
-        return;
+        throw new AppError('新密码至少6个字符', 400, true, req.url);
       }
 
       await userService.changePassword(req.user!.id, oldPassword, newPassword);
 
-      res.json({
-        success: true,
-        message: '密码修改成功'
-      } as ApiResponse);
-
+      res.json({ message: '密码修改成功' });
     } catch (error: any) {
-      logger.error('修改密码失败:', error);
-      res.status(500).json({
-        success: false,
-        message: error.message || '修改密码失败'
-      } as ApiResponse);
+      throw new AppError(error.message || '修改密码失败', 500, true, req.url);
     }
   });
 
@@ -161,19 +114,9 @@ export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
         }
 
         const result = await userService.getUsers(params);
-
-        res.json({
-          success: true,
-          data: result,
-          message: '获取用户列表成功'
-        } as ApiResponse);
-
+        res.json(result);
       } catch (error: any) {
-        logger.error('获取用户列表失败:', error);
-        res.status(500).json({
-          success: false,
-          message: error.message || '获取用户列表失败'
-        } as ApiResponse);
+        throw new AppError(error.message || '获取用户列表失败', 500, true, req.url);
       }
     }
   );
@@ -187,11 +130,7 @@ export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
         const { username, email, password, role, displayName, settings } = req.body;
 
         if (!username || !email || !password) {
-          res.status(400).json({
-            success: false,
-            message: '用户名、邮箱和密码不能为空'
-          } as ApiResponse);
-          return;
+          throw new AppError('用户名、邮箱和密码不能为空', 400, true, req.url);
         }
 
         const user = await userService.createUser({
@@ -203,18 +142,9 @@ export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
           settings
         });
 
-        res.status(201).json({
-          success: true,
-          data: user,
-          message: '创建用户成功'
-        } as ApiResponse);
-
+        res.status(201).json(user);
       } catch (error: any) {
-        logger.error('创建用户失败:', error);
-        res.status(500).json({
-          success: false,
-          message: error.message || '创建用户失败'
-        } as ApiResponse);
+        throw new AppError(error.message || '创建用户失败', 500, true, req.url);
       }
     }
   );
@@ -228,27 +158,13 @@ export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
         const { userId } = req.params;
         
         if (!userId) {
-          res.status(400).json({
-            success: false,
-            message: '用户ID不能为空'
-          } as ApiResponse);
-          return;
+          throw new AppError('用户ID不能为空', 400, true, req.url);
         }
         
         const user = await userService.getUserById(userId);
-
-        res.json({
-          success: true,
-          data: user,
-          message: '获取用户信息成功'
-        } as ApiResponse);
-
+        res.json(user);
       } catch (error: any) {
-        logger.error('获取用户信息失败:', error);
-        res.status(500).json({
-          success: false,
-          message: error.message || '获取用户信息失败'
-        } as ApiResponse);
+        throw new AppError(error.message || '获取用户信息失败', 500, true, req.url);
       }
     }
   );
@@ -262,11 +178,7 @@ export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
         const { userId } = req.params;
         
         if (!userId) {
-          res.status(400).json({
-            success: false,
-            message: '用户ID不能为空'
-          } as ApiResponse);
-          return;
+          throw new AppError('用户ID不能为空', 400, true, req.url);
         }
         
         const { displayName, email, settings } = req.body;
@@ -277,18 +189,9 @@ export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
           settings
         });
 
-        res.json({
-          success: true,
-          data: updatedUser,
-          message: '更新用户信息成功'
-        } as ApiResponse);
-
+        res.json(updatedUser);
       } catch (error: any) {
-        logger.error('更新用户信息失败:', error);
-        res.status(500).json({
-          success: false,
-          message: error.message || '更新用户信息失败'
-        } as ApiResponse);
+        throw new AppError(error.message || '更新用户信息失败', 500, true, req.url);
       }
     }
   );
@@ -302,35 +205,18 @@ export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statemen
         const { userId } = req.params;
         
         if (!userId) {
-          res.status(400).json({
-            success: false,
-            message: '用户ID不能为空'
-          } as ApiResponse);
-          return;
+          throw new AppError('用户ID不能为空', 400, true, req.url);
         }
 
         // 不能删除自己
         if (userId === req.user!.id) {
-          res.status(400).json({
-            success: false,
-            message: '不能删除自己的账户'
-          } as ApiResponse);
-          return;
+          throw new AppError('不能删除自己的账户', 400, true, req.url);
         }
 
         await userService.deleteUser(userId);
-
-        res.json({
-          success: true,
-          message: '删除用户成功'
-        } as ApiResponse);
-
+        res.json({ message: '删除用户成功' });
       } catch (error: any) {
-        logger.error('删除用户失败:', error);
-        res.status(500).json({
-          success: false,
-          message: error.message || '删除用户失败'
-        } as ApiResponse);
+        throw new AppError(error.message || '删除用户失败', 500, true, req.url);
       }
     }
   );
