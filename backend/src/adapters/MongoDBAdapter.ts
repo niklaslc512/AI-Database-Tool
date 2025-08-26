@@ -132,16 +132,16 @@ export class MongoDBAdapter implements DatabaseAdapter {
     try {
       this.config = config;
       
-      // 构建MongoDB连接字符串
-      let connectionString = config.connectionString;
+      // 使用DSN连接字符串
+      const connectionString = config.dsn;
       if (!connectionString) {
-        const auth = config.username && config.password 
-          ? `${encodeURIComponent(config.username)}:${encodeURIComponent(config.password)}@`
-          : '';
-        const ssl = config.ssl ? '?ssl=true' : '';
-        connectionString = `mongodb://${auth}${config.host}:${config.port}/${config.database}${ssl}`;
+        throw new Error('MongoDB连接需要DSN连接字符串');
       }
 
+      // 解析DSN获取连接信息用于日志
+      const url = new URL(connectionString);
+      const dbName = url.pathname.slice(1) || 'default';
+      
       // 创建MongoDB客户端
       this.client = new MongoClient(connectionString, {
         maxPoolSize: 10,
@@ -155,12 +155,12 @@ export class MongoDBAdapter implements DatabaseAdapter {
       await this.client.connect();
       
       // 选择数据库
-      this.db = this.client.db(config.database);
+      this.db = this.client.db(dbName);
       
       // 测试连接
       await this.db.admin().ping();
 
-      logger.info(`MongoDB数据库连接成功: ${config.host}:${config.port}/${config.database}`);
+      logger.info(`MongoDB数据库连接成功: ${url.host}/${dbName}`);
     } catch (error) {
       logger.error('MongoDB数据库连接失败:', error);
       throw error;

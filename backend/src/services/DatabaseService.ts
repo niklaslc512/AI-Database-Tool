@@ -36,16 +36,13 @@ export class DatabaseService extends BaseService {
       id: connection.id,
       name: connection.name,
       type: connection.type as DatabaseType,
-      host: connection.host,
-      port: connection.port,
-      database: connection.database_name,
-      username: connection.username,
-      password: connection.password, // 实际应用中应该解密
-      ssl: !!connection.ssl,
-      connectionString: connection.connection_string,
-      metadata: connection.metadata ? JSON.parse(connection.metadata) : undefined,
-      createdAt: connection.created_at,
-      updatedAt: connection.updated_at
+      dsn: connection.dsn,
+      status: connection.status,
+      ...(connection.last_tested_at && { lastTestedAt: new Date(connection.last_tested_at) }),
+      ...(connection.test_result && { testResult: connection.test_result }),
+      ...(connection.metadata && { metadata: JSON.parse(connection.metadata) }),
+      createdAt: new Date(connection.created_at),
+      updatedAt: new Date(connection.updated_at)
     };
 
     return AdapterFactory.getAdapter(config);
@@ -91,10 +88,9 @@ export class DatabaseService extends BaseService {
     }
 
     // 测试连接
-    const isValid = await this.testConnection(connection);
-    if (!isValid) {
-      throw new Error('数据库连接测试失败');
-    }
+    const testResult = await this.testConnection(connection);
+    const status = testResult ? 'active' : 'error';
+    const testMessage = testResult ? '连接测试成功' : '连接测试失败';
 
     // 生成连接ID
     const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -104,21 +100,17 @@ export class DatabaseService extends BaseService {
       const dbService = new DatabaseService();
       await dbService.executeRun(`
         INSERT INTO database_connections (
-          id, user_id, name, type, host, port, database_name, 
-          username, password, ssl, connection_string, metadata
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, user_id, name, type, dsn, status, last_tested_at, test_result, metadata
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         connectionId,
         userId,
         connection.name,
         connection.type,
-        connection.host,
-        connection.port,
-        connection.database,
-        connection.username,
-        connection.password, // 实际应用中应该加密
-        connection.ssl ? 1 : 0,
-        connection.connectionString,
+        connection.dsn,
+        status,
+        new Date().toISOString(),
+        testMessage,
         connection.metadata ? JSON.stringify(connection.metadata) : null
       ]);
 
@@ -127,6 +119,9 @@ export class DatabaseService extends BaseService {
       return {
         ...connection,
         id: connectionId,
+        status,
+        lastTestedAt: new Date(),
+        testResult: testMessage,
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -151,14 +146,11 @@ export class DatabaseService extends BaseService {
       id: conn.id,
       name: conn.name,
       type: conn.type as DatabaseType,
-      host: conn.host,
-      port: conn.port,
-      database: conn.database_name,
-      username: conn.username,
-      password: '***', // 不返回密码
-      ssl: !!conn.ssl,
-      connectionString: conn.connection_string,
-      metadata: conn.metadata ? JSON.parse(conn.metadata) : undefined,
+      dsn: conn.dsn,
+      status: conn.status,
+      ...(conn.last_tested_at && { lastTestedAt: new Date(conn.last_tested_at) }),
+      ...(conn.test_result && { testResult: conn.test_result }),
+      ...(conn.metadata && { metadata: JSON.parse(conn.metadata) }),
       createdAt: new Date(conn.created_at),
       updatedAt: new Date(conn.updated_at)
     }));
@@ -167,22 +159,54 @@ export class DatabaseService extends BaseService {
   /**
    * 删除数据库连接
    */
-  static async deleteConnection(userId: string, connectionId: string): Promise<void> {
+  static async deleteConnection(connectionId: string): Promise<void> {
     const dbService = new DatabaseService();
     
     const result = await dbService.executeRun(
-      'DELETE FROM database_connections WHERE id = ? AND user_id = ?',
-      [connectionId, userId]
+      'DELETE FROM database_connections WHERE id = ?',
+      [connectionId]
     );
 
     if (result.changes === 0) {
-      throw new Error('数据库连接不存在或无权限删除');
+      throw new Error('数据库连接不存在');
     }
 
     // 移除缓存的适配器
     await AdapterFactory.removeAdapter(connectionId);
     
     logger.info(`数据库连接删除成功: ${connectionId}`);
+  }
+
+  /**
+   * 更新数据库连接
+   */
+  static async updateConnection(connectionId: string, updateData: any): Promise<void> {
+    const dbService = new DatabaseService();
+    
+    const setClause = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
+    const values = Object.values(updateData);
+    values.push(connectionId);
+
+    await dbService.executeRun(
+      `UPDATE database_connections SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      values
+    );
+
+    logger.info(`数据库连接更新成功: ${connectionId}`);
+  }
+
+  /**
+   * 更新连接状态
+   */
+  static async updateConnectionStatus(connectionId: string, status: string, message: string): Promise<void> {
+    const dbService = new DatabaseService();
+    
+    await dbService.executeRun(
+      'UPDATE database_connections SET status = ?, last_tested_at = ?, test_result = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [status, new Date().toISOString(), message, connectionId]
+    );
+
+    logger.info(`连接状态更新成功: ${connectionId} -> ${status}`);
   }
 
   /**

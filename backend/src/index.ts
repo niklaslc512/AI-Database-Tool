@@ -8,9 +8,11 @@ import { createServer } from 'http';
 
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
+
 import { requestLogger } from './utils/logger';
 import { connectDatabase } from './config/database';
 import { createRoutes } from './routes';
+import { DatabaseService } from './services/DatabaseService';
 import { ConfigService } from './services/ConfigService';
 
 // 加载环境变量
@@ -60,6 +62,12 @@ class App {
     // 解析请求体
     this.app.use(express.json({ limit: process.env.MAX_FILE_SIZE || '10mb' }));
     this.app.use(express.urlencoded({ extended: true, limit: process.env.MAX_FILE_SIZE || '10mb' }));
+
+    // 🕐 请求时间记录中间件
+    this.app.use((req: any, res: any, next: any) => {
+      req.startTime = Date.now();
+      next();
+    });
 
     // 静态文件服务
     this.app.use('/uploads', express.static('uploads'));

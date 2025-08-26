@@ -1,5 +1,17 @@
 # API响应标准化设计文档
 
+## 🚨 强制性API响应规范要求
+
+**本文档定义的API响应格式为系统强制性标准，所有API接口的返回格式必须严格按照此规范执行，不允许任何偏差。**
+
+### 📋 核心要求
+
+1. **所有API返回必须遵循本文档定义的响应格式**
+2. **禁止使用旧版本的包装格式（如success字段、外层data包装）**
+3. **HTTP状态码必须正确设置，JSON中不得包含statusCode字段**
+4. **错误响应必须包含message、timestamp、path字段**
+5. **开发人员必须使用标准化的响应工具类**
+
 ## 概述
 
 本文档定义了AI数据库管理系统前后端API响应格式的标准化规范。目标是简化响应结构，提高开发效率，并统一错误处理机制。
@@ -10,6 +22,8 @@
 - 使用HTTP状态码表示请求状态，JSON中不包含statusCode
 - 统一错误处理和成功响应格式
 - 保持向后兼容性，平滑迁移现有代码
+- 简化API Key设计，使用ak-前缀的字符串格式
+- 简化数据库连接配置，使用DSN连接字符串
 
 ## 新响应格式规范
 
@@ -84,37 +98,109 @@
 | 数据冲突 | 409 | 数据已存在、状态冲突等 |
 | 服务器错误 | 500 | 数据库错误、系统异常等 |
 
-## 实现架构
+## 🔑 API Key设计规范
 
-### 后端实现架构
+### API Key格式要求
 
-```mermaid
-graph TD
-    A[路由处理器] --> B[业务逻辑层]
-    B --> C{操作结果}
-    C -->|成功且有数据| D[直接返回数据]
-    C -->|成功无数据| E[返回消息确认]
-    C -->|操作失败| F[抛出异常]
-    F --> G[全局错误处理中间件]
-    G --> H[标准化错误响应]
-    D --> I[res.status(200)]
-    E --> I
-    H --> J[res.status(错误码)]
+**API Key必须使用以下格式：**
+
+```
+ak-{随机字符串}
 ```
 
-### 前端处理架构
+**示例：**
+```json
+{
+  "apiKey": "ak-1a2b3c4d5e6f7g8h9i0j",
+  "name": "开发环境密钥",
+  "permissions": ["read", "write"],
+  "databaseIds": ["db1", "db2"],
+  "expiresAt": "2024-12-31T23:59:59.000Z",
+  "createdAt": "2024-01-15T08:30:00.000Z"
+}
+```
 
-```mermaid
-graph TD
-    A[API请求] --> B[Axios拦截器]
-    B --> C{HTTP状态码}
-    C -->|2xx| D[成功处理]
-    C -->|4xx/5xx| E[错误处理]
-    D --> F{响应体类型}
-    F -->|有message字段| G[操作确认处理]
-    F -->|无message字段| H[数据处理]
-    E --> I[错误消息提取]
-    I --> J[用户提示]
+### API Key响应格式
+
+**创建API Key响应：**
+```json
+{
+  "id": "key123",
+  "apiKey": "ak-1a2b3c4d5e6f7g8h9i0j",
+  "name": "开发环境密钥",
+  "permissions": ["read", "write"],
+  "databaseIds": ["db1", "db2"],
+  "expiresAt": "2024-12-31T23:59:59.000Z",
+  "createdAt": "2024-01-15T08:30:00.000Z"
+}
+```
+
+**API Key列表响应：**
+```json
+[
+  {
+    "id": "key123",
+    "name": "开发环境密钥",
+    "permissions": ["read", "write"],
+    "databaseIds": ["db1", "db2"],
+    "expiresAt": "2024-12-31T23:59:59.000Z",
+    "createdAt": "2024-01-15T08:30:00.000Z",
+    "lastUsed": "2024-01-20T10:15:30.000Z"
+  }
+]
+```
+
+## 🗄️ 数据库连接设计规范
+
+### 数据库连接格式要求
+
+**数据库连接信息必须使用DSN（Data Source Name）格式：**
+
+**PostgreSQL DSN示例：**
+```
+postgresql://username:password@localhost:5432/database_name
+```
+
+**MongoDB DSN示例：**
+```
+mongodb://username:password@localhost:27017/database_name
+```
+
+### 数据库连接响应格式
+
+**创建数据库连接响应：**
+```json
+{
+  "id": "conn123",
+  "name": "生产环境PostgreSQL",
+  "type": "postgresql",
+  "dsn": "postgresql://user:pass@localhost:5432/mydb",
+  "status": "connected",
+  "createdAt": "2024-01-15T08:30:00.000Z",
+  "lastConnected": "2024-01-20T10:15:30.000Z"
+}
+```
+
+**数据库连接列表响应：**
+```json
+[
+  {
+    "id": "conn123",
+    "name": "生产环境PostgreSQL",
+    "type": "postgresql",
+    "status": "connected",
+    "createdAt": "2024-01-15T08:30:00.000Z",
+    "lastConnected": "2024-01-20T10:15:30.000Z"
+  },
+  {
+    "id": "conn456",
+    "name": "开发环境MongoDB",
+    "type": "mongodb",
+    "status": "disconnected",
+    "createdAt": "2024-01-16T09:20:00.000Z",
+    "lastConnected": "2024-01-19T15:45:20.000Z"
+  }
+]
 ```
 
 ## 技术实现方案
@@ -251,10 +337,16 @@ export type ApiErrorResponse = {
    - 适配新的响应格式
 
 2. **API密钥管理路由改造**
+   - 实现ak-前缀的API Key格式
    - 修改密钥创建、查询、更新、删除API
-   - 统一响应格式
+   - 统一响应格式，移除keyId和keySecret字段
 
-3. **系统路由改造**
+3. **数据库连接管理路由改造**
+   - 实现DSN格式的数据库连接配置
+   - 移除分散的user、password、host等字段
+   - 统一使用dsn字段存储连接信息
+
+4. **系统路由改造**
    - 修改健康检查、信息查询等API
    - 确保格式一致性
 
@@ -335,24 +427,71 @@ export type ApiErrorResponse = {
    - 前端处理逻辑简化
    - 响应解析性能无退化
 
-## 文档更新要求
+## 📋 API响应规范文档要求
 
-### API文档更新
+### 🚨 强制性规范
+
+**所有开发人员必须严格遵循以下API响应规范：**
+
+1. **响应格式标准化**
+   - 成功响应：直接返回数据对象或包含message的确认对象
+   - 错误响应：必须包含message、timestamp、path字段
+   - 禁止使用success、statusCode等冗余字段
+
+2. **API Key规范**
+   - 必须使用ak-前缀格式：`ak-{随机字符串}`
+   - 禁止使用keyId和keySecret分离设计
+   - 响应中必须包含完整的权限和数据库关联信息
+
+3. **数据库连接规范**
+   - 必须使用DSN连接字符串格式
+   - 禁止分散存储user、password、host等字段
+   - 响应中只暴露必要的连接状态信息
+
+4. **HTTP状态码规范**
+   - 2xx：成功响应
+   - 400：请求参数错误
+   - 401：认证失败
+   - 403：权限不足
+   - 404：资源不存在
+   - 409：数据冲突
+   - 500：服务器错误
+
+### 📚 文档更新要求
+
+#### API文档更新
 
 1. **接口文档**
    - 更新所有API接口的响应示例
    - 标注新格式说明
+   - 添加API Key和数据库连接的标准格式示例
 
 2. **错误码文档**
-   - 整理所有可能的statusCode
+   - 整理所有可能的HTTP状态码
+   - 提供标准化错误响应格式
    - 提供错误处理指南
 
-### 开发文档更新
+#### 开发文档更新
 
 1. **开发规范**
    - 更新API开发规范
    - 提供响应格式模板
+   - 添加API Key和数据库连接的开发指南
 
 2. **迁移指南**
    - 提供详细的代码迁移示例
+   - API Key格式迁移说明
+   - 数据库连接配置迁移说明
    - 常见问题解答
+
+### ✅ 验证检查清单
+
+开发人员在提交代码前必须确认：
+
+- [ ] API响应格式符合标准规范
+- [ ] 没有使用已禁用的字段（success、statusCode等）
+- [ ] HTTP状态码设置正确
+- [ ] API Key使用ak-前缀格式
+- [ ] 数据库连接使用DSN格式
+- [ ] 错误响应包含必需字段
+- [ ] 响应示例已更新到文档

@@ -96,12 +96,12 @@
                   <span class="ml-2">正在加载配置数据...</span>
                 </td>
               </tr>
-              <tr v-else-if="filteredConfigs.length === 0">
+              <tr v-else-if="configs.length === 0">
                 <td colspan="6" class="text-center py-8 text-gray-500">
                   暂无配置数据
                 </td>
               </tr>
-              <tr v-else v-for="config in filteredConfigs" :key="config.id" class="hover">
+              <tr v-else v-for="config in configs" :key="config.id" class="hover">
                 <td>
                   <div class="flex items-center gap-2">
                     <span :class="`badge ${getTypeColor(config.type)}`">
@@ -327,7 +327,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { 
   Setting, 
   Plus, 
@@ -433,32 +433,7 @@ const configForm = reactive<CreateConfigRequest>({
   description: ''
 })
 
-// 🔍 计算属性 - 过滤后的配置列表
-const filteredConfigs = computed(() => {
-  let result = configs.value
-  
-  // 搜索过滤
-  if (searchKeyword.value) {
-    const keyword = searchKeyword.value.toLowerCase()
-    result = result.filter(config => 
-      config.key.toLowerCase().includes(keyword) ||
-      config.value.toLowerCase().includes(keyword) ||
-      config.description?.toLowerCase().includes(keyword)
-    )
-  }
-  
-  // 分类过滤
-  if (selectedCategory.value) {
-    result = result.filter(config => config.category === selectedCategory.value)
-  }
-  
-  // 类型过滤
-  if (selectedType.value) {
-    result = result.filter(config => config.type === selectedType.value)
-  }
-  
-  return result
-})
+
 
 // 🎨 样式辅助函数
 const getTypeColor = (type: ConfigType): string => {
@@ -500,7 +475,10 @@ const loadConfigs = async () => {
     loading.value = true
     const response = await configApi.getConfigs({
       page: currentPage.value,
-      limit: pageSize.value
+      limit: pageSize.value,
+      category: selectedCategory.value || undefined,
+      search: searchKeyword.value || undefined,
+      includeValues: true
     })
     configs.value = response.data
     totalConfigs.value = response.pagination.total
@@ -515,10 +493,12 @@ const loadConfigs = async () => {
 // 🔍 搜索处理
 const handleSearch = () => {
   currentPage.value = 1
+  loadConfigs()
 }
 
 const handleCategoryChange = () => {
   currentPage.value = 1
+  loadConfigs()
 }
 
 const handleTypeChange = () => {
@@ -606,6 +586,11 @@ const resetForm = () => {
   configForm.category = 'general'
   configForm.description = ''
 }
+
+// 👀 监听页面变化
+watch(currentPage, () => {
+  loadConfigs()
+})
 
 // 🚀 初始化
 onMounted(() => {

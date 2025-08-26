@@ -240,19 +240,20 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const loginWithExternalToken = async (token: string, userId?: string): Promise<LoginResponse> => {
+  const loginWithExternalToken = async (tokenString: string, userId?: string): Promise<LoginResponse> => {
     try {
-      const response = await api.post<LoginResponse>('/auth/external/login', { token, userId })
+      const response = await api.post<LoginResponse>('/auth/external/login', { token: tokenString, userId })
+
       
-      const { user: userData, jwtToken, expiresAt } = response
+      const { user: userData, token: userToken, expiresAt } = response
       
       // 保存用户信息和token
       user.value = userData
-      token.value = jwtToken
+      token.value = userToken
       isAuthenticated.value = true
       
       // 持久化存储
-      localStorage.setItem('token', jwtToken)
+      localStorage.setItem('token', userToken)
       localStorage.setItem('user', JSON.stringify(userData))
       
       return response

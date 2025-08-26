@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ApiKeyService } from '../services/ApiKeyService';
 import { createAuthMiddleware } from '../middleware/auth';
-import { AppError } from '../types';
+import { ApiKeyPermission, AppError } from '../types';
 import { RoleUtils } from '../utils/roleUtils';
 import { logger } from '../utils/logger';
 
@@ -9,6 +9,21 @@ export function createApiKeyRoutes(): Router {
   const router = Router();
   const apiKeyService = ApiKeyService.getInstance();
   const authMiddleware = createAuthMiddleware();
+
+  // 获取可用权限列表 - 必须在参数路由之前定义
+  router.get('/available-permissions', authMiddleware.authenticate, async (req, res) => {
+    try {
+      const permissions = [
+        { value: 'read', label: '读取', description: '允许执行SELECT查询' },
+        { value: 'write', label: '写入', description: '允许执行INSERT和UPDATE操作' },
+        { value: 'delete', label: '删除', description: '允许执行DELETE操作' },
+        { value: 'admin', label: '管理员', description: '允许执行所有操作，包括DDL语句' }
+      ];
+      res.json(permissions);
+    } catch (error: any) {
+      throw new AppError(error.message || '获取权限列表失败', 500, true, req.url);
+    }
+  });
 
   // 获取当前用户的API密钥列表
   router.get('/', authMiddleware.authenticate, async (req, res) => {
@@ -29,7 +44,7 @@ export function createApiKeyRoutes(): Router {
   // 创建新的API密钥
   router.post('/', authMiddleware.authenticate, async (req, res): Promise<void> => {
     try {
-      const { name, permissions, expiresAt } = req.body;
+      const { name, permissions, databaseIds, expiresAt } = req.body;
 
       if (!name || !name.trim()) {
         throw new AppError('API密钥名称不能为空', 400, true, req.url);
@@ -39,9 +54,10 @@ export function createApiKeyRoutes(): Router {
         throw new AppError('API密钥名称不能超过50个字符', 400, true, req.url);
       }
 
-      const createData: { name: string; permissions?: string[]; expiresAt?: Date } = {
+      const createData: { name: string; permissions?: ApiKeyPermission[]; databaseIds?: string[]; expiresAt?: Date } = {
         name: name.trim(),
-        permissions
+        permissions,
+        databaseIds
       };
       
       if (expiresAt) {
@@ -82,7 +98,7 @@ export function createApiKeyRoutes(): Router {
   router.put('/:keyId', authMiddleware.authenticate, async (req, res): Promise<void> => {
     try {
       const { keyId } = req.params;
-      const { name, permissions } = req.body;
+      const { name, permissions, databaseIds } = req.body;
 
       if (name && !name.trim()) {
         throw new AppError('API密钥名称不能为空', 400, true, req.url);
@@ -94,7 +110,8 @@ export function createApiKeyRoutes(): Router {
 
       const updateData = {
         name: name?.trim(),
-        permissions
+        permissions,
+        databaseIds
       };
 
       const updatedApiKey = await apiKeyService.updateApiKey(keyId || '', req.user!.id, updateData);
@@ -130,6 +147,8 @@ export function createApiKeyRoutes(): Router {
       throw new AppError(error.message || '删除API密钥失败', 500, true, req.url);
     }
   });
+
+
 
   // 获取API密钥使用统计
   router.get('/stats/usage', authMiddleware.authenticate, async (req, res) => {

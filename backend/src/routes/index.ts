@@ -3,6 +3,7 @@ import { createUserRoutes } from './users';
 import { createApiKeyRoutes } from './apiKeys';
 import { createAuthRoutes } from './auth';
 import { createConfigRoutes } from './configs';
+import { createConnectionRoutes } from './connections';
 
 export function createRoutes(): Router {
   const router = Router();
@@ -58,7 +59,7 @@ export function createRoutes(): Router {
 
   console.log('🔑 注册API密钥路由...');
   // API密钥管理路由
-  router.use('/apiKeys', createApiKeyRoutes());
+  router.use('/api-keys', createApiKeyRoutes());
 
   console.log('🔐 注册外部授权路由...');
   // 外部授权路由
@@ -68,8 +69,11 @@ export function createRoutes(): Router {
   // 系统配置路由（仅admin可访问）
   router.use('/configs', createConfigRoutes());
 
+  console.log('🔗 注册数据库连接路由...');
+  // 数据库连接管理路由
+  router.use('/connections', createConnectionRoutes());
+
   // TODO: 在这里添加其他路由模块
-  // router.use('/connections', connectionRoutes);
   // router.use('/query', queryRoutes);
   // router.use('/ai', aiRoutes);
 

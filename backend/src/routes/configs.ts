@@ -1,14 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { ConfigService } from '../services/ConfigService';
 import { createAuthMiddleware } from '../middleware/auth';
+import { logger } from '../utils/logger';
 import { 
+  AppError,
   CreateConfigRequest, 
   UpdateConfigRequest, 
   ConfigCategory,
-  PaginationParams,
-  AppError 
+  PaginationParams
 } from '../types';
-import { logger } from '../utils/logger';
 
 /**
  * 🔧 系统配置路由
@@ -73,20 +73,15 @@ export function createConfigRoutes(): Router {
       logger.info(`📋 管理员 ${req.user?.username} 查看配置列表，页码: ${pagination.page}`);
 
       res.json({
-        success: true,
         data: result.data,
-        pagination: result.pagination,
-        timestamp: new Date().toISOString()
+        pagination: result.pagination
       });
     } catch (error) {
       logger.error('💥 获取配置列表失败:', error);
-      const statusCode = error instanceof AppError ? error.statusCode : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: error instanceof AppError ? error.message : '获取配置列表失败',
-        timestamp: new Date().toISOString(),
-        path: req.path
-      });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('获取配置列表失败', 500);
     }
   });
 
@@ -113,20 +108,13 @@ export function createConfigRoutes(): Router {
 
       logger.info(`🔍 管理员 ${req.user?.username} 查看配置详情: ${config.key}`);
 
-      res.json({
-        success: true,
-        data: config,
-        timestamp: new Date().toISOString()
-      });
+      res.json(config);
     } catch (error) {
       logger.error('💥 获取配置详情失败:', error);
-      const statusCode = error instanceof AppError ? error.statusCode : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: error instanceof AppError ? error.message : '获取配置详情失败',
-        timestamp: new Date().toISOString(),
-        path: req.path
-      });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('获取配置详情失败', 500);
     }
   });
 
@@ -163,21 +151,13 @@ export function createConfigRoutes(): Router {
 
       logger.info(`✅ 管理员 ${req.user?.username} 创建配置: ${config.key}`);
 
-      res.status(201).json({
-        success: true,
-        data: config,
-        message: '配置创建成功',
-        timestamp: new Date().toISOString()
-      });
+      res.status(201).json(config);
     } catch (error) {
       logger.error('💥 创建配置失败:', error);
-      const statusCode = error instanceof AppError ? error.statusCode : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: error instanceof AppError ? error.message : '创建配置失败',
-        timestamp: new Date().toISOString(),
-        path: req.path
-      });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('创建配置失败', 500);
     }
   });
 
@@ -207,21 +187,13 @@ export function createConfigRoutes(): Router {
 
       logger.info(`✅ 管理员 ${req.user?.username} 更新配置: ${config.key}`);
 
-      res.json({
-        success: true,
-        data: config,
-        message: '配置更新成功',
-        timestamp: new Date().toISOString()
-      });
+      res.json(config);
     } catch (error) {
       logger.error('💥 更新配置失败:', error);
-      const statusCode = error instanceof AppError ? error.statusCode : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: error instanceof AppError ? error.message : '更新配置失败',
-        timestamp: new Date().toISOString(),
-        path: req.path
-      });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('更新配置失败', 500);
     }
   });
 
@@ -244,20 +216,13 @@ export function createConfigRoutes(): Router {
 
       logger.info(`✅ 管理员 ${req.user?.username} 删除配置: ${config.key}`);
 
-      res.json({
-        success: true,
-        message: '配置删除成功',
-        timestamp: new Date().toISOString()
-      });
+      res.json({ message: '配置删除成功' });
     } catch (error) {
       logger.error('💥 删除配置失败:', error);
-      const statusCode = error instanceof AppError ? error.statusCode : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: error instanceof AppError ? error.message : '删除配置失败',
-        timestamp: new Date().toISOString(),
-        path: req.path
-      });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('删除配置失败', 500);
     }
   });
 
@@ -273,20 +238,13 @@ export function createConfigRoutes(): Router {
 
       logger.info(`🔄 管理员 ${req.user?.username} 重新加载系统配置`);
 
-      res.json({
-        success: true,
-        message: '配置重新加载成功',
-        timestamp: new Date().toISOString()
-      });
+      res.json({ message: '配置重新加载成功' });
     } catch (error) {
       logger.error('💥 重新加载配置失败:', error);
-      const statusCode = error instanceof AppError ? error.statusCode : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: error instanceof AppError ? error.message : '重新加载配置失败',
-        timestamp: new Date().toISOString(),
-        path: req.path
-      });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('重新加载配置失败', 500);
     }
   });
 
@@ -312,23 +270,13 @@ export function createConfigRoutes(): Router {
 
       logger.info(`🔑 管理员 ${req.user?.username} 获取配置值: ${key}`);
 
-      res.json({
-        success: true,
-        data: {
-          key,
-          value
-        },
-        timestamp: new Date().toISOString()
-      });
+      res.json({ key, value });
     } catch (error) {
       logger.error('💥 获取配置值失败:', error);
-      const statusCode = error instanceof AppError ? error.statusCode : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: error instanceof AppError ? error.message : '获取配置值失败',
-        timestamp: new Date().toISOString(),
-        path: req.path
-      });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('获取配置值失败', 500);
     }
   });
 

@@ -18,10 +18,7 @@ const Register = () => import('@/views/Auth/Register.vue')
 // 🔐 Admin专用页面
 const UserManagement = () => import('@/views/Admin/UserManagement.vue')
 const SystemSettings = () => import('@/views/Admin/SystemSettings.vue')
-
-// 👨‍💻 Developer专用页面
-const DatabaseManagement = () => import('@/views/Developer/DatabaseManagement.vue')
-const ApiKeyManagement = () => import('@/views/Developer/ApiKeyManagement.vue')
+const ApiKeyManagement = () => import('@/views/ApiKeys/index.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -122,7 +119,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'database',
         name: 'DatabaseManagement',
-        component: DatabaseManagement,
+        component: () => import('@/views/DatabaseConnections/index.vue'),
         meta: {
           title: '数据库表管理',
           icon: 'Database',

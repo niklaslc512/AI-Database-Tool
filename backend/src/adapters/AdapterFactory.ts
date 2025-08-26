@@ -203,23 +203,22 @@ export class AdapterFactory {
       errors.push(`不支持的数据库类型: ${connection.type}`);
     }
     
-    // 验证主机地址和端口
-    if (!connection.host?.trim()) {
-      errors.push('主机地址不能为空');
-    }
-    
-    if (!connection.port || connection.port <= 0 || connection.port > 65535) {
-      errors.push('端口号必须在1-65535之间');
-    }
-    
-    // PostgreSQL和MongoDB都需要用户名
-    if (!connection.username?.trim()) {
-      errors.push('用户名不能为空');
-    }
-    
-    // 验证数据库名称
-    if (!connection.database?.trim()) {
-      errors.push('数据库名称不能为空');
+    // 验证DSN连接字符串
+    if (!connection.dsn?.trim()) {
+      errors.push('DSN连接字符串不能为空');
+    } else {
+      // 基本DSN格式验证
+      try {
+        const url = new URL(connection.dsn);
+        if (!url.hostname) {
+          errors.push('DSN中缺少主机地址');
+        }
+        if (!url.pathname || url.pathname === '/') {
+          errors.push('DSN中缺少数据库名称');
+        }
+      } catch (error) {
+        errors.push('DSN格式无效');
+      }
     }
     
     return errors;

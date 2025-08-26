@@ -1,15 +1,17 @@
-import axios, { type AxiosResponse, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import axios, { type AxiosResponse, type AxiosError } from 'axios'
 import type { 
-  LoginRequest, 
-  LoginResponse, 
-  User, 
-  ErrorResponse, 
   MessageResponse,
   SystemConfig,
   CreateConfigRequest,
   UpdateConfigRequest,
-  ConfigStats,
-  ConfigCategoryInfo
+  LoginRequest,
+  LoginResponse,
+  User,
+  PaginatedResult,
+  ApiKey,
+  CreateApiKeyRequest,
+  CreateApiKeyResponse,
+  DatabaseConnection
 } from '@/types'
 // 🎨 使用原生浏览器API替代Element Plus消息组件
 import { ApiLogger } from './logger'
@@ -154,6 +156,49 @@ export const api = {
     apiClient.patch(url, data).then(res => res.data)
 }
 
+// 数据库连接相关API
+export const connectionApi = {
+  // 获取连接列表
+  getConnections: (): Promise<DatabaseConnection[]> =>
+    api.get('/connections'),
+    
+  // 创建连接
+  createConnection: (data: {
+    name: string
+    type: string
+    dsn: string
+  }): Promise<DatabaseConnection> =>
+    api.post('/connections', data),
+    
+  // 更新连接
+  updateConnection: (id: string, data: {
+    name?: string
+    type?: string
+    dsn?: string
+  }): Promise<DatabaseConnection> =>
+    api.put(`/connections/${id}`, data),
+    
+  // 删除连接
+  deleteConnection: (id: string): Promise<MessageResponse> =>
+    api.delete(`/connections/${id}`),
+    
+  // 测试连接
+  testConnection: (data: { id: string }): Promise<{ success: boolean; message: string }> =>
+    api.post('/connections/test', data),
+    
+  // 获取数据库列表
+  getDatabases: (connectionId: string): Promise<string[]> =>
+    api.get(`/connections/${connectionId}/databases`),
+    
+  // 获取表列表
+  getTables: (connectionId: string, database?: string): Promise<any[]> =>
+    api.get(`/connections/${connectionId}/tables`, { database }),
+    
+  // 获取表结构
+  getTableSchema: (connectionId: string, tableName: string): Promise<any> =>
+    api.get(`/connections/${connectionId}/tables/${tableName}/schema`)
+}
+
 // 认证相关API
 export const authApi = {
   // 登录
@@ -185,90 +230,26 @@ export const authApi = {
     api.post('/auth/refresh')
 }
 
-// 数据库连接相关API
-export const connectionApi = {
-  // 获取连接列表
-  getConnections: (): Promise<any> =>
-    api.get('/connections'),
-    
-  // 创建连接
-  createConnection: (data: any): Promise<any> =>
-    api.post('/connections', data),
-    
-  // 更新连接
-  updateConnection: (id: string, data: any): Promise<any> =>
-    api.put(`/connections/${id}`, data),
-    
-  // 删除连接
-  deleteConnection: (id: string): Promise<MessageResponse> =>
-    api.delete(`/connections/${id}`),
-    
-  // 测试连接
-  testConnection: (data: any): Promise<any> =>
-    api.post('/connections/test', data),
-    
-  // 获取数据库列表
-  getDatabases: (connectionId: string): Promise<any> =>
-    api.get(`/connections/${connectionId}/databases`),
-    
-  // 获取表列表
-  getTables: (connectionId: string, database?: string): Promise<any> =>
-    api.get(`/connections/${connectionId}/tables`, { database }),
-    
-  // 获取表结构
-  getTableSchema: (connectionId: string, tableName: string): Promise<any> =>
-    api.get(`/connections/${connectionId}/tables/${tableName}/schema`)
-}
-
-// 查询相关API
-export const queryApi = {
-  // 执行SQL查询
-  executeQuery: (connectionId: string, sql: string): Promise<any> =>
-    api.post(`/query/${connectionId}/execute`, { sql }),
-    
-  // AI自然语言查询
-  naturalQuery: (connectionId: string, naturalQuery: string): Promise<any> =>
-    api.post(`/query/${connectionId}/natural`, { naturalQuery }),
-    
-  // 获取查询历史
-  getQueryHistory: (connectionId?: string): Promise<any> =>
-    api.get('/query/history', { connectionId }),
-    
-  // 保存查询
-  saveQuery: (data: any): Promise<any> =>
-    api.post('/query/save', data),
-    
-  // 获取保存的查询
-  getSavedQueries: (): Promise<any> =>
-    api.get('/query/saved')
-}
-
-// AI相关API
-export const aiApi = {
-  // 生成SQL
-  generateSQL: (data: any): Promise<any> =>
-    api.post('/ai/generate-sql', data),
-    
-  // SQL解释
-  explainSQL: (sql: string): Promise<any> =>
-    api.post('/ai/explain-sql', { sql }),
-    
-  // SQL优化建议
-  optimizeSQL: (sql: string): Promise<any> =>
-    api.post('/ai/optimize-sql', { sql }),
-    
-  // 表结构建议
-  suggestTableStructure: (description: string): Promise<any> =>
-    api.post('/ai/suggest-table', { description })
-}
-
 // 系统配置相关API
 export const configApi = {
   // 获取所有配置
-  getConfigs: (category?: string, search?: string): Promise<SystemConfig[]> => {
+  getConfigs: (options?: {
+    page?: number
+    limit?: number
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+    category?: string
+    search?: string
+    includeValues?: boolean
+  }): Promise<{ data: SystemConfig[], pagination: { total: number, page: number, limit: number, totalPages: number } }> => {
     const params: any = {}
-    if (category) params.category = category
-    if (search) params.search = search
+    if (options?.page) params.page = options.page
+    if (options?.limit) params.limit = options.limit
+    if (options?.sortBy) params.sortBy = options.sortBy
+    if (options?.sortOrder) params.sortOrder = options.sortOrder
+    if (options?.category) params.category = options.category
+    if (options?.search) params.search = options.search
+    if (options?.includeValues !== undefined) params.includeValues = options.includeValues.toString()
     return api.get('/configs', params)
   },
 
@@ -292,5 +273,104 @@ export const configApi = {
   reloadConfigs: (): Promise<MessageResponse> =>
     api.post('/configs/reload')
 }
+
+// 用户管理相关API
+export const userApi = {
+  // 获取用户列表
+  getUsers: (options?: {
+    page?: number
+    limit?: number
+    keyword?: string
+    role?: string
+    status?: string
+  }): Promise<PaginatedResult<User>> => {
+    const params: any = {}
+    if (options?.page) params.page = options.page
+    if (options?.limit) params.limit = options.limit
+    if (options?.keyword) params.keyword = options.keyword
+    if (options?.role) params.role = options.role
+    if (options?.status) params.status = options.status
+    return api.get('/users', params)
+  },
+
+  // 创建用户
+  createUser: (userData: {
+    username: string
+    email: string
+    password: string
+    displayName?: string
+    role: string
+  }): Promise<User> =>
+    api.post('/users', userData),
+
+  // 更新用户
+  updateUser: (id: string, userData: {
+    email?: string
+    displayName?: string
+    role?: string
+    status?: string
+  }): Promise<User> =>
+    api.put(`/users/${id}`, userData),
+
+  // 删除用户
+  deleteUser: (id: string): Promise<MessageResponse> =>
+    api.delete(`/users/${id}`),
+
+  // 获取单个用户
+  getUser: (id: string): Promise<User> =>
+    api.get(`/users/${id}`),
+
+  // 重置用户密码
+  resetPassword: (id: string, newPassword: string): Promise<MessageResponse> =>
+    api.put(`/users/${id}/password`, { password: newPassword }),
+
+  // 批量删除用户
+  batchDeleteUsers: (ids: string[]): Promise<MessageResponse> =>
+    api.post('/users/batch-delete', { ids })
+}
+
+// API密钥相关API
+export const apiKeyApi = {
+  // 获取API密钥列表
+  getApiKeys: (): Promise<ApiKey[]> =>
+    api.get('/api-keys'),
+    
+  // 创建API密钥
+  createApiKey: (data: CreateApiKeyRequest): Promise<CreateApiKeyResponse> =>
+    api.post('/api-keys', data),
+    
+  // 更新API密钥
+  updateApiKey: (id: string, data: {
+    name?: string
+    permissions?: string[]
+    databaseIds?: string[]
+    expiresAt?: string
+    isActive?: boolean
+  }): Promise<ApiKey> =>
+    api.put(`/api-keys/${id}`, data),
+    
+  // 删除API密钥
+  deleteApiKey: (id: string): Promise<MessageResponse> =>
+    api.delete(`/api-keys/${id}`),
+    
+  // 切换API密钥状态
+  toggleApiKeyStatus: (id: string, isActive: boolean): Promise<ApiKey> =>
+    api.put(`/api-keys/${id}`, { isActive }),
+    
+  // 获取单个API密钥
+  getApiKey: (id: string): Promise<ApiKey> =>
+    api.get(`/api-keys/${id}`),
+    
+  // 获取可用权限列表
+  getAvailablePermissions: (): Promise<Array<{
+    value: string
+    label: string
+    description: string
+  }>> =>
+    api.get('/api-keys/available-permissions')
+}
+
+// 🔄 导出别名以保持向后兼容性
+export { api as apiService }
 
 export default api

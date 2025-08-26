@@ -4,7 +4,8 @@ import {
   CreateApiKeyRequest,
   CreateApiKeyResponse,
   PaginationParams,
-  PaginatedResult
+  PaginatedResult,
+  ApiKeyPermission
 } from '../types';
 import { AppError } from '../types';
 import { logger } from '../utils/logger';
@@ -85,33 +86,40 @@ export class ApiKeyService {
         throw new AppError('API密钥数量已达上限（10个）', 400);
       }
 
-      // 生成密钥ID和密钥
-      const keyId = this.generateKeyId();
-      const secret = this.generateSecret();
-      const secretHash = this.hashSecret(secret);
+      // 生成完整的API密钥（ak-开头的单一字符串）
+      const apiKey = this.generateApiKey();
+
+      // 验证权限列表
+      if (keyData.permissions && keyData.permissions.length > 0) {
+        const validPermissions = ['read', 'write', 'delete', 'admin'];
+        const invalidPermissions = keyData.permissions.filter(p => !validPermissions.includes(p));
+        if (invalidPermissions.length > 0) {
+          throw new AppError(`无效的权限: ${invalidPermissions.join(', ')}`, 400);
+        }
+      }
 
       // 插入API密钥数据
       const result = await this.executeRun(`
         INSERT INTO api_keys (
-          user_id, name, key_id, key_secret, permissions, expires_at, is_active
+          user_id, name, api_key, permissions, database_ids, expires_at, is_active
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
         [userId,
         keyData.name,
-        keyId,
-        secretHash,
-        keyData.permissions ? JSON.stringify(keyData.permissions) : null,
+        apiKey,
+        keyData.permissions ? JSON.stringify(keyData.permissions) : '["read"]',
+        keyData.databaseIds ? JSON.stringify(keyData.databaseIds) : null,
         keyData.expiresAt ? keyData.expiresAt.toISOString() : null,
         true]
       );
 
-      const apiKey = await this.getApiKeyById(result.lastID?.toString() || '');
+      const createdApiKey = await this.getApiKeyById(result.lastID?.toString() || '');
       
       logger.info(`创建API密钥成功: ${keyData.name} (用户ID: ${userId})`);
 
       return {
-        apiKey,
-        secret: `${keyId}.${secret}` // 只在创建时返回完整密钥
+        apiKey: createdApiKey,
+        secret: apiKey // 只在创建时返回完整密钥
       };
     } catch (error) {
       logger.error('创建API密钥失败:', error);
@@ -150,25 +158,22 @@ export class ApiKeyService {
   }
 
   /**
-   * 根据密钥ID验证API密钥
+   * 验证API密钥
    */
-  async validateApiKey(fullKey: string): Promise<{ valid: boolean; apiKey?: ApiKey; user?: any }> {
+  async validateApiKey(apiKeyString: string): Promise<{ valid: boolean; apiKey?: ApiKey; user?: any }> {
     try {
-      // 解析密钥格式：keyId.secret
-      const parts = fullKey.split('.');
-      if (parts.length !== 2) {
+      // 检查API密钥格式（必须以ak-开头）
+      if (!apiKeyString.startsWith(this.keyPrefix)) {
         return { valid: false };
       }
 
-      const [keyId, secret] = parts;
-
       // 查找API密钥
       const dbKey = await this.executeQuery(`
-        SELECT ak.*, u.id as user_id, u.username, u.role, u.status
+        SELECT ak.*, u.id as user_id, u.username, u.roles, u.status
         FROM api_keys ak
         JOIN users u ON ak.user_id = u.id
-        WHERE ak.key_id = ? AND ak.is_active = TRUE
-      `, [keyId]) as any;
+        WHERE ak.api_key = ? AND ak.is_active = TRUE
+      `, [apiKeyString]) as any;
 
       if (!dbKey) {
         return { valid: false };
@@ -184,12 +189,6 @@ export class ApiKeyService {
         return { valid: false };
       }
 
-      // 验证密钥
-      const isSecretValid = this.verifySecret(secret || '', dbKey.key_secret);
-      if (!isSecretValid) {
-        return { valid: false };
-      }
-
       // 更新最后使用时间
       await this.executeRun(`
         UPDATE api_keys 
@@ -201,7 +200,7 @@ export class ApiKeyService {
       const user = {
         id: dbKey.user_id,
         username: dbKey.username,
-        role: dbKey.role,
+        roles: dbKey.roles,
         status: dbKey.status
       };
 
@@ -215,7 +214,7 @@ export class ApiKeyService {
   /**
    * 更新API密钥
    */
-  async updateApiKey(id: string, userId: string, updateData: { name?: string; permissions?: string[] }): Promise<ApiKey> {
+  async updateApiKey(id: string, userId: string, updateData: { name?: string; permissions?: string[]; databaseIds?: string[]; expiresAt?: Date; isActive?: boolean }): Promise<ApiKey> {
     try {
       const existingKey = await this.executeQuery('SELECT * FROM api_keys WHERE id = ? AND user_id = ?', [id, userId]) as any;
       if (!existingKey) {
@@ -233,6 +232,21 @@ export class ApiKeyService {
       if (updateData.permissions !== undefined) {
         updates.push('permissions = ?');
         values.push(JSON.stringify(updateData.permissions));
+      }
+
+      if (updateData.databaseIds !== undefined) {
+        updates.push('database_ids = ?');
+        values.push(JSON.stringify(updateData.databaseIds));
+      }
+
+      if (updateData.expiresAt !== undefined) {
+        updates.push('expires_at = ?');
+        values.push(updateData.expiresAt ? updateData.expiresAt.toISOString() : null);
+      }
+
+      if (updateData.isActive !== undefined) {
+        updates.push('is_active = ?');
+        values.push(updateData.isActive);
       }
 
       if (updates.length === 0) {
@@ -348,33 +362,85 @@ export class ApiKeyService {
   }
 
   /**
-   * 生成密钥ID
+   * 检查API密钥是否有特定权限
    */
-  private generateKeyId(): string {
-    const randomBytes = crypto.randomBytes(8);
+  async checkApiKeyPermission(
+    apiKey: ApiKey, 
+    permission: ApiKeyPermission, 
+    databaseId?: string
+  ): Promise<boolean> {
+    try {
+      // 检查基础权限
+      if (!apiKey.permissions || !apiKey.permissions.includes(permission)) {
+        return false;
+      }
+
+      // 检查数据库访问权限
+      if (databaseId && apiKey.databaseIds && apiKey.databaseIds.length > 0) {
+        if (!apiKey.databaseIds.includes(databaseId)) {
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      logger.error('检查API密钥权限失败:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 检查API密钥是否可以执行SQL语句
+   */
+  async canExecuteSQL(apiKey: ApiKey, sql: string): Promise<{ allowed: boolean; reason?: string | undefined }> {
+
+    try {
+      const sqlUpper = sql.trim().toUpperCase();
+      
+      if (sqlUpper.startsWith('SELECT')) {
+        const hasPermission = apiKey.permissions?.includes('read') || false;
+        return { 
+          allowed: hasPermission, 
+          reason: hasPermission ? undefined : '缺少读取权限' 
+        };
+      } else if (sqlUpper.startsWith('INSERT')) {
+        const hasPermission = apiKey.permissions?.includes('write') || false;
+        return { 
+          allowed: hasPermission, 
+          reason: hasPermission ? undefined : '缺少写入权限' 
+        };
+      } else if (sqlUpper.startsWith('UPDATE')) {
+        const hasPermission = apiKey.permissions?.includes('write') || false;
+        return { 
+          allowed: hasPermission, 
+          reason: hasPermission ? undefined : '缺少更新权限' 
+        };
+      } else if (sqlUpper.startsWith('DELETE')) {
+        const hasPermission = apiKey.permissions?.includes('delete') || false;
+        return { 
+          allowed: hasPermission, 
+          reason: hasPermission ? undefined : '缺少删除权限' 
+        };
+      } else {
+        // 其他SQL语句（如DDL）需要管理员权限
+        const hasPermission = apiKey.permissions?.includes('admin') || false;
+        return { 
+          allowed: hasPermission, 
+          reason: hasPermission ? undefined : 'DDL操作需要管理员权限' 
+        };
+      }
+    } catch (error) {
+      logger.error('检查SQL执行权限失败:', error);
+      return { allowed: false, reason: '权限检查失败' };
+    }
+  }
+
+  /**
+   * 生成完整的API密钥（ak-开头的单一字符串）
+   */
+  private generateApiKey(): string {
+    const randomBytes = crypto.randomBytes(32);
     return `${this.keyPrefix}${randomBytes.toString('hex')}`;
-  }
-
-  /**
-   * 生成密钥
-   */
-  private generateSecret(): string {
-    return crypto.randomBytes(32).toString('hex');
-  }
-
-  /**
-   * 哈希密钥
-   */
-  private hashSecret(secret: string): string {
-    return crypto.createHash('sha256').update(secret).digest('hex');
-  }
-
-  /**
-   * 验证密钥
-   */
-  private verifySecret(secret: string, hashedSecret: string): boolean {
-    const secretHash = this.hashSecret(secret);
-    return crypto.timingSafeEqual(Buffer.from(secretHash), Buffer.from(hashedSecret));
   }
 
   /**
@@ -385,8 +451,9 @@ export class ApiKeyService {
       id: dbKey.id?.toString(),
       userId: dbKey.user_id?.toString(),
       name: dbKey.name,
-      keyId: dbKey.key_id,
-      permissions: dbKey.permissions ? JSON.parse(dbKey.permissions) : undefined,
+      apiKey: dbKey.api_key,
+      permissions: dbKey.permissions ? JSON.parse(dbKey.permissions) : ['read'],
+      databaseIds: dbKey.database_ids ? JSON.parse(dbKey.database_ids) : [],
       usageCount: dbKey.usage_count || 0,
       isActive: Boolean(dbKey.is_active),
       createdAt: new Date(dbKey.created_at)

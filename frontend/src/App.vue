@@ -1,6 +1,7 @@
 <template>
   <div id="app" class="h-screen">
     <router-view />
+    <Toast />
   </div>
 </template>
 
@@ -8,6 +9,7 @@
 import { onMounted } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useThemeStore } from '@/stores/theme'
+import Toast from '@/components/Toast.vue'
 
 const appStore = useAppStore()
 const themeStore = useThemeStore()

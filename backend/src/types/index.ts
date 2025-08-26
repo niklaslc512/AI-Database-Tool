@@ -5,13 +5,10 @@ export interface DatabaseConnection {
   id: string;
   name: string;
   type: DatabaseType;
-  host: string;
-  port: number;
-  database: string;
-  username: string;
-  password: string;
-  ssl?: boolean;
-  connectionString?: string;
+  dsn: string;  // DSN连接字符串格式
+  status?: 'active' | 'inactive' | 'error';  // 连接状态
+  lastTestedAt?: Date;  // 最后测试时间
+  testResult?: string;  // 测试结果信息
   metadata?: {
     description: string;
     tags: string[];
@@ -243,14 +240,20 @@ export interface JWTPayload {
 }
 
 /**
+ * API密钥权限类型（使用现有的permissions字段）
+ */
+export type ApiKeyPermission = 'read' | 'write' | 'delete' | 'admin';
+
+/**
  * API密钥
  */
 export interface ApiKey {
   id: string;
   userId: string;
   name: string;
-  keyId: string;
-  permissions?: string[];
+  apiKey: string;  // ak-开头的单一字符串
+  permissions?: ApiKeyPermission[];  // 权限列表（存储在permissions字段）
+  databaseIds?: string[];  // 关联的数据库连接ID列表
   lastUsedAt?: Date;
   usageCount: number;
   expiresAt?: Date;
@@ -263,7 +266,8 @@ export interface ApiKey {
  */
 export interface CreateApiKeyRequest {
   name: string;
-  permissions?: string[];
+  permissions?: ApiKeyPermission[];  // 权限列表
+  databaseIds?: string[];  // 关联的数据库连接ID列表
   expiresAt?: Date;
 }
 
@@ -272,7 +276,7 @@ export interface CreateApiKeyRequest {
  */
 export interface CreateApiKeyResponse {
   apiKey: ApiKey;
-  secret: string; // 仅在创建时返回
+  secret: string; // 仅在创建时返回，实际为完整的ak-开头字符串
 }
 
 /**
@@ -371,6 +375,22 @@ export interface RoleUtils {
   addRole: (userRoles: string, newRole: UserRole) => string;
   removeRole: (userRoles: string, roleToRemove: UserRole) => string;
 }
+
+
+
+/**
+ * 🔑 API密钥权限预设配置
+ */
+export const API_KEY_PERMISSION_PRESETS = {
+  READ_ONLY: ['read'] as ApiKeyPermission[],
+  FULL_ACCESS: ['read', 'write', 'delete', 'admin'] as ApiKeyPermission[],
+  DEVELOPER: ['read', 'write'] as ApiKeyPermission[]
+} as const;
+
+/**
+ * 🔑 API密钥权限预设类型
+ */
+export type ApiKeyPermissionPreset = keyof typeof API_KEY_PERMISSION_PRESETS;
 
 /**
  * 分页结果

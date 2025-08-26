@@ -107,11 +107,23 @@ export class SQLiteAdapter implements DatabaseAdapter {
     try {
       this.config = config;
       
-      // 处理数据库文件路径
-      let dbPath = config.database;
-      if (config.connectionString) {
-        dbPath = config.connectionString;
-      } else if (!path.isAbsolute(dbPath)) {
+      // 使用DSN连接字符串
+      let dbPath = config.dsn;
+      if (!dbPath) {
+        throw new Error('SQLite连接需要DSN连接字符串');
+      }
+      
+      // 处理SQLite DSN格式 (sqlite:///path/to/db.sqlite 或 file:///path/to/db.sqlite)
+      if (dbPath.startsWith('sqlite:///')) {
+        dbPath = dbPath.replace('sqlite:///', '');
+      } else if (dbPath.startsWith('file:///')) {
+        dbPath = dbPath.replace('file:///', '');
+      } else if (dbPath.startsWith('sqlite://')) {
+        dbPath = dbPath.replace('sqlite://', '');
+      }
+      
+      // 确保路径是绝对路径
+      if (!path.isAbsolute(dbPath)) {
         dbPath = path.resolve(dbPath);
       }
 
@@ -266,7 +278,20 @@ export class SQLiteAdapter implements DatabaseAdapter {
 
   async getDatabases(): Promise<string[]> {
     // SQLite是单数据库文件，返回当前数据库名
-    return [this.config?.database || 'main'];
+    if (this.config?.dsn) {
+      // 从DSN中提取数据库文件名
+      let dbPath = this.config.dsn;
+      if (dbPath.startsWith('sqlite:///')) {
+        dbPath = dbPath.replace('sqlite:///', '');
+      } else if (dbPath.startsWith('file:///')) {
+        dbPath = dbPath.replace('file:///', '');
+      } else if (dbPath.startsWith('sqlite://')) {
+        dbPath = dbPath.replace('sqlite://', '');
+      }
+      const dbName = path.basename(dbPath, path.extname(dbPath));
+      return [dbName];
+    }
+    return ['main'];
   }
 
   async getTables(database?: string): Promise<TableInfo[]> {

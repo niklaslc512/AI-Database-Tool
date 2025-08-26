@@ -109,6 +109,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
   private pool: Pool | null = null;
   private dialect: PostgreSQLDialect;
   private config: DatabaseConnection | null = null;
+  private connectionInfo: { host: string; port: number; database: string } | null = null;
 
   constructor() {
     this.dialect = new PostgreSQLDialect();
@@ -118,14 +119,32 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     try {
       this.config = config;
       
+      // 从DSN解析连接参数
+      const url = new URL(config.dsn);
+      const connectionConfig = {
+        host: url.hostname,
+        port: parseInt(url.port) || 5432,
+        database: url.pathname.slice(1), // 移除开头的 '/'
+        user: url.username,
+        password: url.password,
+        ssl: url.searchParams.get('ssl') === 'true'
+      };
+      
+      // 保存解析后的连接信息用于日志
+      this.connectionInfo = {
+        host: connectionConfig.host,
+        port: connectionConfig.port,
+        database: connectionConfig.database
+      };
+      
       // 创建连接池
       this.pool = new Pool({
-        host: config.host,
-        port: config.port,
-        user: config.username,
-        password: config.password,
-        database: config.database,
-        ssl: config.ssl ? { rejectUnauthorized: false } : false,
+        host: connectionConfig.host,
+        port: connectionConfig.port,
+        user: connectionConfig.user,
+        password: connectionConfig.password,
+        database: connectionConfig.database,
+        ssl: connectionConfig.ssl ? { rejectUnauthorized: false } : false,
         max: 10,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 2000,
@@ -136,7 +155,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       await client.query('SELECT 1');
       client.release();
 
-      logger.info(`PostgreSQL数据库连接成功: ${config.host}:${config.port}/${config.database}`);
+      logger.info(`PostgreSQL数据库连接成功: ${this.connectionInfo?.host}:${this.connectionInfo?.port}/${this.connectionInfo?.database}`);
     } catch (error) {
       logger.error('PostgreSQL数据库连接失败:', error);
       throw error;

@@ -150,8 +150,8 @@
                       {{ getStatusLabel(user.status) }}
                     </div>
                   </td>
-                  <td>{{ formatDate(user.lastLoginAt) }}</td>
-                  <td>{{ formatDate(user.createdAt) }}</td>
+                  <td>{{ formatDate(user.lastLoginAt || '') }}</td>
+                  <td>{{ formatDate(user.createdAt || '') }}</td>
                   <td>
                     <div class="flex flex-wrap gap-1">
                       <!-- 🛡️ 编辑按钮 - 需要用户编辑权限 -->
@@ -491,7 +491,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { User, Plus, Search } from '@/utils/iconMapping'
 import { useAuthStore } from '@/stores/auth'
-import { api } from '@/utils/api'
+import { userApi } from '@/utils/api'
 import type { User as UserType, UserRole, UserStatus, PaginatedResult } from '@/types'
 
 // 🔔 原生消息提示函数
@@ -681,13 +681,15 @@ const formatDate = (dateString: string): string => {
 const loadUsers = async () => {
   try {
     loading.value = true
-    const params = {
+    const options = {
       page: pagination.page,
       limit: pagination.limit,
-      ...searchForm
+      keyword: searchForm.keyword,
+      role: searchForm.role,
+      status: searchForm.status
     }
     
-    const response = await api.get<PaginatedResult<UserType>>('/users', { params })
+    const response = await userApi.getUsers(options)
     userList.value = response.data
     pagination.total = response.pagination.total
   } catch (error: any) {
@@ -744,12 +746,14 @@ const handleCreateUser = async () => {
     creating.value = true
     
     const userData = {
-      ...createForm,
+      username: createForm.username,
+      email: createForm.email,
+      password: createForm.password,
+      displayName: createForm.displayName,
       role: createForm.roles.join(',')
     }
-    delete userData.roles
     
-    await api.post('/users', userData)
+    await userApi.createUser(userData)
     showMessage('✅ 用户创建成功', 'success')
     showCreateDialog.value = false
     resetCreateForm()
@@ -795,7 +799,7 @@ const handleUpdateUser = async () => {
       status: editForm.status
     }
     
-    await api.put(`/users/${editForm.id}`, userData)
+    await userApi.updateUser(editForm.id, userData)
     showMessage('✅ 用户更新成功', 'success')
     showEditDialog.value = false
     resetEditForm()
@@ -819,7 +823,7 @@ const toggleUserStatus = async (user: UserType, newStatus: UserStatus) => {
     
     if (!confirmed) return
     
-    await api.put(`/users/${user.id}`, { status: newStatus })
+    await userApi.updateUser(user.id, { status: newStatus })
     showMessage(`✅ 用户${action}成功`, 'success')
     loadUsers()
   } catch (error: any) {
@@ -838,7 +842,7 @@ const deleteUser = async (user: UserType) => {
     
     if (!confirmed) return
     
-    await api.delete(`/users/${user.id}`)
+    await userApi.deleteUser(user.id)
     showMessage('✅ 用户删除成功', 'success')
     loadUsers()
   } catch (error: any) {

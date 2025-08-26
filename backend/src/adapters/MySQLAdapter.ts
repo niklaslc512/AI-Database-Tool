@@ -112,19 +112,25 @@ export class MySQLAdapter implements DatabaseAdapter {
     try {
       this.config = config;
       
-      // 创建连接池
-      // 创建连接池配置
+      // 使用DSN连接字符串
+      const dsn = config.dsn;
+      if (!dsn) {
+        throw new Error('MySQL连接需要DSN连接字符串');
+      }
+
+      // 解析DSN获取连接信息
+      const url = new URL(dsn);
       const poolConfig: any = {
-        host: config.host,
-        port: config.port,
-        user: config.username,
-        password: config.password,
-        database: config.database,
+        host: url.hostname,
+        port: parseInt(url.port) || 3306,
+        user: url.username,
+        password: url.password,
+        database: url.pathname.slice(1),
         connectionLimit: 10
       };
       
-      // 只有启用SSL时才添加ssl配置
-      if (config.ssl) {
+      // 检查SSL配置
+      if (url.searchParams.get('ssl') === 'true') {
         poolConfig.ssl = {};
       }
       
@@ -135,7 +141,7 @@ export class MySQLAdapter implements DatabaseAdapter {
       await testConnection.ping();
       testConnection.release();
 
-      logger.info(`MySQL数据库连接成功: ${config.host}:${config.port}/${config.database}`);
+      logger.info(`MySQL数据库连接成功: ${url.host}/${poolConfig.database}`);
     } catch (error) {
       logger.error('MySQL数据库连接失败:', error);
       throw error;
@@ -264,7 +270,16 @@ export class MySQLAdapter implements DatabaseAdapter {
   }
 
   async getTables(database?: string): Promise<TableInfo[]> {
-    const dbName = database || this.config?.database;
+    let dbName = database;
+    if (!dbName && this.config?.dsn) {
+      // 从DSN中解析数据库名
+      try {
+        const url = new URL(this.config.dsn);
+        dbName = url.pathname.substring(1); // 移除开头的 '/'
+      } catch (error) {
+        throw new Error('无法从DSN中解析数据库名称');
+      }
+    }
     if (!dbName) {
       throw new Error('未指定数据库名称');
     }
@@ -296,7 +311,16 @@ export class MySQLAdapter implements DatabaseAdapter {
   }
 
   async getTableSchema(tableName: string): Promise<ColumnInfo[]> {
-    const dbName = this.config?.database;
+    let dbName: string | undefined;
+    if (this.config?.dsn) {
+      // 从DSN中解析数据库名
+      try {
+        const url = new URL(this.config.dsn);
+        dbName = url.pathname.substring(1); // 移除开头的 '/'
+      } catch (error) {
+        throw new Error('无法从DSN中解析数据库名称');
+      }
+    }
     if (!dbName) {
       throw new Error('未指定数据库名称');
     }
@@ -335,7 +359,16 @@ export class MySQLAdapter implements DatabaseAdapter {
   }
 
   async getIndexes(tableName: string): Promise<IndexInfo[]> {
-    const dbName = this.config?.database;
+    let dbName: string | undefined;
+    if (this.config?.dsn) {
+      // 从DSN中解析数据库名
+      try {
+        const url = new URL(this.config.dsn);
+        dbName = url.pathname.substring(1); // 移除开头的 '/'
+      } catch (error) {
+        throw new Error('无法从DSN中解析数据库名称');
+      }
+    }
     if (!dbName) {
       throw new Error('未指定数据库名称');
     }

@@ -48,13 +48,10 @@ export interface DatabaseConnection {
   id: string;
   name: string;
   type: DatabaseType;
-  host: string;
-  port: number;
-  database: string;
-  username: string;
-  password: string;
-  ssl?: boolean;
-  connectionString?: string;
+  dsn: string; // DSN连接字符串
+  status: 'connected' | 'disconnected' | 'error' | 'untested'; // 连接状态
+  lastTestedAt?: string; // 最后测试时间
+  testResult?: string; // 测试结果信息
   metadata?: {
     description: string;
     tags: string[];
@@ -355,8 +352,9 @@ export interface ApiKey {
   id: string;
   userId: string;
   name: string;
-  keyId: string;
+  apiKey: string; // ak-开头的单一字符串
   permissions?: string[];
+  databaseIds: string[]; // 关联的数据库连接ID列表
   lastUsedAt?: string;
   usageCount: number;
   expiresAt?: string;
@@ -370,6 +368,7 @@ export interface ApiKey {
 export interface CreateApiKeyRequest {
   name: string;
   permissions?: string[];
+  databaseIds: string[]; // 关联的数据库连接ID列表
   expiresAt?: string;
 }
 
@@ -378,7 +377,7 @@ export interface CreateApiKeyRequest {
  */
 export interface CreateApiKeyResponse {
   apiKey: ApiKey;
-  secret: string; // 仅在创建时返回
+  secret: string; // 仅在创建时返回，实际为完整的ak-开头字符串
 }
 
 /**
