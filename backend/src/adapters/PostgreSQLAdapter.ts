@@ -1,5 +1,14 @@
 import { Pool, Client } from 'pg';
-import type { DatabaseAdapter, SQLDialect, ColumnDefinition } from './interfaces';
+import type { 
+  DatabaseAdapter, 
+  SQLDialect, 
+  ColumnDefinition,
+  DataStatistics,
+  ColumnStatistics,
+  JoinCondition,
+  VectorSearchResult,
+  FullTextSearchConfig
+} from './interfaces';
 import type { 
   DatabaseConnection, 
   QueryResult, 
@@ -426,5 +435,348 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       type: field.dataTypeID,
       length: field.dataTypeSize
     }));
+  }
+
+  // ===========================================
+  // AI语义化操作功能实现
+  // ===========================================
+
+  /**
+   * 全文搜索功能
+   * 使用PostgreSQL的全文搜索功能
+   */
+  async fullTextSearch(
+    tableName: string, 
+    searchText: string, 
+    columns?: string[],
+    config?: FullTextSearchConfig
+  ): Promise<QueryResult> {
+    if (!this.pool) {
+      throw new Error('数据库连接池未初始化');
+    }
+
+    const searchColumns = columns && columns.length > 0 ? columns : ['*'];
+    const language = config?.language || 'english';
+    
+    // 使用PostgreSQL的全文搜索
+    let sql: string;
+    let params: any[];
+
+    if (columns && columns.length > 0) {
+      // 指定列的全文搜索
+      const tsVectorExpression = columns.map(col => 
+        `to_tsvector('${language}', COALESCE(${this.dialect.quoteIdentifier(col)}, ''))`
+      ).join(' || ');
+      
+      sql = `
+        SELECT *, 
+               ts_rank((${tsVectorExpression}), plainto_tsquery('${language}', $1)) as relevance_score
+        FROM ${this.dialect.quoteIdentifier(tableName)}
+        WHERE (${tsVectorExpression}) @@ plainto_tsquery('${language}', $1)
+        ORDER BY relevance_score DESC
+      `;
+      params = [searchText];
+    } else {
+      // 全表搜索（需要先创建全文索引）
+      sql = `
+        SELECT *
+        FROM ${this.dialect.quoteIdentifier(tableName)}
+        WHERE to_tsvector('${language}', ${this.dialect.quoteIdentifier(tableName)}::text) @@ plainto_tsquery('${language}', $1)
+      `;
+      params = [searchText];
+    }
+
+    try {
+      return await this.executeQuery(sql, params);
+    } catch (error) {
+      logger.error('PostgreSQL全文搜索失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 向量相似性搜索
+   * 使用pgvector扩展
+   */
+  async vectorSearch(
+    tableName: string, 
+    vectorColumn: string, 
+    queryVector: number[], 
+    topK: number = 10
+  ): Promise<QueryResult> {
+    if (!this.pool) {
+      throw new Error('数据库连接池未初始化');
+    }
+
+    // 检查pgvector扩展是否安装
+    await this.ensurePgVectorExtension();
+
+    const sql = `
+      SELECT *,
+             ${this.dialect.quoteIdentifier(vectorColumn)} <-> $1::vector as distance,
+             1 - (${this.dialect.quoteIdentifier(vectorColumn)} <-> $1::vector) as similarity
+      FROM ${this.dialect.quoteIdentifier(tableName)}
+      ORDER BY ${this.dialect.quoteIdentifier(vectorColumn)} <-> $1::vector
+      LIMIT $2
+    `;
+
+    const vectorString = `[${queryVector.join(',')}]`;
+    
+    try {
+      return await this.executeQuery(sql, [vectorString, topK]);
+    } catch (error) {
+      logger.error('PostgreSQL向量搜索失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取数据统计信息
+   */
+  async getDataStatistics(tableName: string, columns?: string[]): Promise<DataStatistics> {
+    if (!this.pool) {
+      throw new Error('数据库连接池未初始化');
+    }
+
+    // 获取总行数
+    const countResult = await this.executeQuery(
+      `SELECT COUNT(*) as total_rows FROM ${this.dialect.quoteIdentifier(tableName)}`
+    );
+    const totalRows = parseInt(countResult.rows[0]?.total_rows || '0');
+
+    // 获取表结构
+    const schema = await this.getTableSchema(tableName);
+    const targetColumns = columns && columns.length > 0 
+      ? schema.filter(col => columns.includes(col.name))
+      : schema;
+
+    // 为每列收集统计信息
+    const columnStats: ColumnStatistics[] = [];
+    
+    for (const column of targetColumns) {
+      const stats = await this.getColumnStatistics(tableName, column);
+      columnStats.push(stats);
+    }
+
+    return {
+      tableName,
+      totalRows,
+      columns: columnStats
+    };
+  }
+
+  /**
+   * 智能连表查询
+   */
+  async intelligentJoin(tables: string[], conditions?: JoinCondition[]): Promise<QueryResult> {
+    if (!this.pool) {
+      throw new Error('数据库连接池未初始化');
+    }
+
+    if (tables.length < 2) {
+      throw new Error('连表查询至少需要2个表');
+    }
+
+    if (tables.length === 0) {
+      throw new Error('表列表不能为空');
+    }
+
+    const firstTable = tables[0];
+    if (!firstTable) {
+      throw new Error('第一个表名不能为空');
+    }
+
+    let sql = `SELECT * FROM ${this.dialect.quoteIdentifier(firstTable)}`;
+    
+    if (conditions && conditions.length > 0) {
+      // 使用提供的连接条件
+      for (const condition of conditions) {
+        sql += ` ${condition.joinType} JOIN ${this.dialect.quoteIdentifier(condition.rightTable)} ON ${condition.onCondition}`;
+      }
+    } else {
+      // 智能推断连接条件（基于外键关系）
+      for (let i = 1; i < tables.length; i++) {
+        const currentTable = tables[i];
+        if (currentTable) {
+          const joinCondition = await this.inferJoinCondition(firstTable, currentTable);
+          sql += ` LEFT JOIN ${this.dialect.quoteIdentifier(currentTable)} ON ${joinCondition}`;
+        }
+      }
+    }
+
+    return await this.executeQuery(sql);
+  }
+
+  /**
+   * 创建向量索引
+   */
+  async createVectorIndex(tableName: string, columnName: string, dimensions: number): Promise<void> {
+    if (!this.pool) {
+      throw new Error('数据库连接池未初始化');
+    }
+
+    await this.ensurePgVectorExtension();
+
+    const indexName = `idx_${tableName}_${columnName}_vector`;
+    const sql = `
+      CREATE INDEX IF NOT EXISTS ${this.dialect.quoteIdentifier(indexName)}
+      ON ${this.dialect.quoteIdentifier(tableName)}
+      USING ivfflat (${this.dialect.quoteIdentifier(columnName)} vector_cosine_ops)
+      WITH (lists = 100)
+    `;
+
+    await this.executeQuery(sql);
+    logger.info(`向量索引创建成功: ${indexName}`);
+  }
+
+  /**
+   * 创建全文搜索索引
+   */
+  async createFullTextIndex(tableName: string, columns: string[], language: string = 'english'): Promise<void> {
+    if (!this.pool) {
+      throw new Error('数据库连接池未初始化');
+    }
+
+    const indexName = `idx_${tableName}_${columns.join('_')}_fts`;
+    const tsVectorExpression = columns.map(col => 
+      `to_tsvector('${language}', COALESCE(${this.dialect.quoteIdentifier(col)}, ''))`
+    ).join(' || ');
+    
+    const sql = `
+      CREATE INDEX IF NOT EXISTS ${this.dialect.quoteIdentifier(indexName)}
+      ON ${this.dialect.quoteIdentifier(tableName)}
+      USING GIN ((${tsVectorExpression}))
+    `;
+
+    await this.executeQuery(sql);
+    logger.info(`全文搜索索引创建成功: ${indexName}`);
+  }
+
+  // ===========================================
+  // 私有辅助方法
+  // ===========================================
+
+  /**
+   * 确保pgvector扩展已安装
+   */
+  private async ensurePgVectorExtension(): Promise<void> {
+    try {
+      await this.executeQuery('CREATE EXTENSION IF NOT EXISTS vector');
+    } catch (error) {
+      throw new Error('pgvector扩展未安装。请先安装pgvector扩展以支持向量搜索功能。');
+    }
+  }
+
+  /**
+   * 获取单列统计信息
+   */
+  private async getColumnStatistics(tableName: string, column: ColumnInfo): Promise<ColumnStatistics> {
+    const columnName = this.dialect.quoteIdentifier(column.name);
+    const tableNameQuoted = this.dialect.quoteIdentifier(tableName);
+    
+    let sql: string;
+    let params: any[] = [];
+    
+    if (column.type.toLowerCase().includes('int') || column.type.toLowerCase().includes('numeric') || column.type.toLowerCase().includes('float')) {
+      // 数值类型统计
+      sql = `
+        SELECT 
+          COUNT(${columnName}) as non_null_count,
+          COUNT(DISTINCT ${columnName}) as unique_count,
+          MIN(${columnName}) as min_value,
+          MAX(${columnName}) as max_value,
+          AVG(${columnName}::numeric) as avg_value
+        FROM ${tableNameQuoted}
+        WHERE ${columnName} IS NOT NULL
+      `;
+    } else {
+      // 文本类型统计
+      sql = `
+        SELECT 
+          COUNT(${columnName}) as non_null_count,
+          COUNT(DISTINCT ${columnName}) as unique_count,
+          MIN(${columnName}) as min_value,
+          MAX(${columnName}) as max_value
+        FROM ${tableNameQuoted}
+        WHERE ${columnName} IS NOT NULL
+      `;
+    }
+
+    const result = await this.executeQuery(sql, params);
+    const stats = result.rows[0];
+    if (!stats) {
+      throw new Error(`无法获取列 ${column.name} 的统计信息`);
+    }
+
+    // 获取最常见的值
+    const commonValuesResult = await this.executeQuery(`
+      SELECT ${columnName} as value, COUNT(*) as count
+      FROM ${tableNameQuoted}
+      WHERE ${columnName} IS NOT NULL
+      GROUP BY ${columnName}
+      ORDER BY COUNT(*) DESC
+      LIMIT 5
+    `);
+
+    return {
+      name: column.name,
+      type: column.type,
+      nonNullCount: parseInt(stats?.non_null_count) || 0,
+      uniqueCount: parseInt(stats?.unique_count) || 0,
+      minValue: stats?.min_value,
+      maxValue: stats?.max_value,
+      avgValue: stats?.avg_value ? parseFloat(stats.avg_value) : undefined,
+      mostCommonValues: commonValuesResult.rows.map(row => ({
+        value: row.value,
+        count: parseInt(row.count)
+      }))
+    };
+  }
+
+  /**
+   * 智能推断连接条件
+   */
+  private async inferJoinCondition(leftTable: string, rightTable: string): Promise<string> {
+    // 查询外键关系
+    const sql = `
+      SELECT 
+        kcu.column_name as left_column,
+        ccu.column_name as right_column
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.key_column_usage kcu
+        ON tc.constraint_name = kcu.constraint_name
+      JOIN information_schema.constraint_column_usage ccu
+        ON ccu.constraint_name = tc.constraint_name
+      WHERE tc.constraint_type = 'FOREIGN KEY'
+        AND tc.table_name = $1
+        AND ccu.table_name = $2
+      LIMIT 1
+    `;
+
+    const result = await this.executeQuery(sql, [leftTable, rightTable]);
+    
+    if (result.rows.length > 0 && result.rows[0]) {
+      const leftCol = this.dialect.quoteIdentifier(`${leftTable}.${result.rows[0].left_column}`);
+      const rightCol = this.dialect.quoteIdentifier(`${rightTable}.${result.rows[0].right_column}`);
+      return `${leftCol} = ${rightCol}`;
+    }
+
+    // 如果没找到外键，尝试通过命名约定推断（如user_id -> users.id）
+    const leftSchema = await this.getTableSchema(leftTable);
+    const rightSchema = await this.getTableSchema(rightTable);
+    
+    for (const leftCol of leftSchema) {
+      for (const rightCol of rightSchema) {
+        if (leftCol.name.endsWith('_id') && rightCol.isPrimaryKey) {
+          const expectedName = `${rightTable.slice(0, -1)}_id`; // users -> user_id
+          if (leftCol.name === expectedName) {
+            return `${this.dialect.quoteIdentifier(`${leftTable}.${leftCol.name}`)} = ${this.dialect.quoteIdentifier(`${rightTable}.${rightCol.name}`)}`;
+          }
+        }
+      }
+    }
+
+    // 默认连接条件（可能需要用户手动指定）
+    return '1=1'; // 这会产生笛卡尔积，实际使用中应该避免
   }
 }

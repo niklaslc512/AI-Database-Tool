@@ -180,6 +180,37 @@ export interface DatabaseAdapter {
    * 获取查询统计信息
    */
   getQueryStats(): Promise<any>;
+
+  // AI语义化操作扩展
+  /**
+   * 全文搜索
+   */
+  fullTextSearch?(tableName: string, searchText: string, columns?: string[]): Promise<QueryResult>;
+
+  /**
+   * 向量相似性搜索
+   */
+  vectorSearch?(tableName: string, vectorColumn: string, queryVector: number[], topK?: number): Promise<QueryResult>;
+
+  /**
+   * 语义化数据统计
+   */
+  getDataStatistics?(tableName: string, columns?: string[]): Promise<DataStatistics>;
+
+  /**
+   * 智能连表查询
+   */
+  intelligentJoin?(tables: string[], conditions?: JoinCondition[]): Promise<QueryResult>;
+
+  /**
+   * 创建向量索引
+   */
+  createVectorIndex?(tableName: string, columnName: string, dimensions: number): Promise<void>;
+
+  /**
+   * 创建全文搜索索引
+   */
+  createFullTextIndex?(tableName: string, columns: string[], language?: string): Promise<void>;
 }
 
 /**
@@ -410,4 +441,84 @@ export interface DatabaseMigration {
    * 获取迁移描述
    */
   getDescription(): string;
+}
+
+/**
+ * 数据统计信息接口
+ * 
+ * @description 提供表和列的统计信息，用于AI分析
+ */
+export interface DataStatistics {
+  /** 表名 */
+  tableName: string;
+  /** 总行数 */
+  totalRows: number;
+  /** 列统计信息 */
+  columns: ColumnStatistics[];
+  /** 数据分布信息 */
+  distribution?: Record<string, any>;
+}
+
+/**
+ * 列统计信息
+ */
+export interface ColumnStatistics {
+  /** 列名 */
+  name: string;
+  /** 数据类型 */
+  type: string;
+  /** 非空值数量 */
+  nonNullCount: number;
+  /** 唯一值数量 */
+  uniqueCount: number;
+  /** 最小值 */
+  minValue?: any;
+  /** 最大值 */
+  maxValue?: any;
+  /** 平均值（数值类型） */
+  avgValue?: number | undefined;
+  /** 最常见的值 */
+  mostCommonValues?: Array<{ value: any; count: number }>;
+}
+
+/**
+ * 连表查询条件
+ */
+export interface JoinCondition {
+  /** 左表 */
+  leftTable: string;
+  /** 右表 */
+  rightTable: string;
+  /** 连接类型 */
+  joinType: 'INNER' | 'LEFT' | 'RIGHT' | 'FULL';
+  /** 连接条件 */
+  onCondition: string;
+  /** 连接字段映射 */
+  fieldMapping?: Record<string, string>;
+}
+
+/**
+ * 向量搜索结果
+ */
+export interface VectorSearchResult {
+  /** 原始数据 */
+  data: Record<string, any>;
+  /** 相似度分数 */
+  similarity: number;
+  /** 距离 */
+  distance?: number;
+}
+
+/**
+ * 全文搜索配置
+ */
+export interface FullTextSearchConfig {
+  /** 搜索语言 */
+  language?: string;
+  /** 最小词长 */
+  minWordLength?: number;
+  /** 是否启用模糊匹配 */
+  fuzzyMatch?: boolean;
+  /** 权重配置 */
+  weights?: Record<string, number>;
 }

@@ -9,17 +9,18 @@ import type {
   DatabaseType 
 } from '../types';
 import { logger } from '../utils/logger';
-import { getDatabase } from '../config/database';
+import { databaseManager } from '../config/database';
+import { BaseService } from './BaseService';
 
 /**
  * 数据库服务类
  */
-export class DatabaseService {
+export class DatabaseService extends BaseService {
   /**
    * 获取数据库适配器
    */
   private static async getAdapter(connectionId: string): Promise<DatabaseAdapter> {
-    const db = await getDatabase();
+    const db = await databaseManager.getDatabase();
     
     const connection = await db.get(
       'SELECT * FROM database_connections WHERE id = ?',
@@ -76,8 +77,6 @@ export class DatabaseService {
     userId: string, 
     connection: Omit<DatabaseConnection, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<DatabaseConnection> {
-    const db = await getDatabase();
-    
     // 验证连接配置
     const tempConfig: DatabaseConnection = {
       ...connection,
@@ -102,7 +101,8 @@ export class DatabaseService {
 
     try {
       // 保存连接配置
-      await db.run(`
+      const dbService = new DatabaseService();
+      await dbService.executeRun(`
         INSERT INTO database_connections (
           id, user_id, name, type, host, port, database_name, 
           username, password, ssl, connection_string, metadata
@@ -140,9 +140,9 @@ export class DatabaseService {
    * 获取用户的数据库连接列表
    */
   static async getUserConnections(userId: string): Promise<DatabaseConnection[]> {
-    const db = await getDatabase();
+    const dbService = new DatabaseService();
     
-    const connections = await db.all(
+    const connections = await dbService.executeAll(
       'SELECT * FROM database_connections WHERE user_id = ? ORDER BY created_at DESC',
       [userId]
     );
@@ -168,9 +168,9 @@ export class DatabaseService {
    * 删除数据库连接
    */
   static async deleteConnection(userId: string, connectionId: string): Promise<void> {
-    const db = await getDatabase();
+    const dbService = new DatabaseService();
     
-    const result = await db.run(
+    const result = await dbService.executeRun(
       'DELETE FROM database_connections WHERE id = ? AND user_id = ?',
       [connectionId, userId]
     );

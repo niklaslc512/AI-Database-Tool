@@ -1,46 +1,34 @@
 import type { DatabaseAdapter } from './interfaces';
 import type { DatabaseConnection, DatabaseType } from '../types';
-import { MySQLAdapter } from './MySQLAdapter';
 import { PostgreSQLAdapter } from './PostgreSQLAdapter';
-import { SQLiteAdapter } from './SQLiteAdapter';
 import { MongoDBAdapter } from './MongoDBAdapter';
 import { logger } from '../utils/logger';
 
 /**
- * 数据库适配器工厂
+ * 数据库适配器工厂 - 支持多连接管理
  */
 export class AdapterFactory {
   private static adapters = new Map<string, DatabaseAdapter>();
+  private static connectionMetrics = new Map<string, {
+    createdAt: Date;
+    lastUsed: Date;
+    queryCount: number;
+    errorCount: number;
+  }>();
 
   /**
-   * 创建数据库适配器
+   * 创建数据库适配器 - 支持PostgreSQL和MongoDB
    */
   static createAdapter(type: DatabaseType): DatabaseAdapter {
     switch (type) {
-      case 'mysql':
-        return new MySQLAdapter();
-      
       case 'postgresql':
         return new PostgreSQLAdapter();
       
       case 'mongodb':
         return new MongoDBAdapter();
       
-      case 'sqlite':
-        return new SQLiteAdapter();
-      
-      // TODO: 实现其他数据库适配器
-      case 'redis':
-        throw new Error('Redis适配器尚未实现');
-      
-      case 'oracle':
-        throw new Error('Oracle适配器尚未实现');
-      
-      case 'sqlserver':
-        throw new Error('SQL Server适配器尚未实现');
-      
       default:
-        throw new Error(`不支持的数据库类型: ${type}`);
+        throw new Error(`不支持的数据库类型: ${type}。当前仅支持PostgreSQL和MongoDB`);
     }
   }
 
@@ -53,6 +41,9 @@ export class AdapterFactory {
     if (this.adapters.has(key)) {
       const adapter = this.adapters.get(key)!;
       
+      // 更新使用统计
+      this.updateConnectionMetrics(key, 'used');
+      
       // 测试连接是否有效
       const isConnected = await adapter.testConnection();
       if (isConnected) {
@@ -60,6 +51,7 @@ export class AdapterFactory {
       } else {
         // 连接失效，移除并重新创建
         this.adapters.delete(key);
+        this.connectionMetrics.delete(key);
       }
     }
 
@@ -69,9 +61,19 @@ export class AdapterFactory {
     try {
       await adapter.connect(connection);
       this.adapters.set(key, adapter);
+      
+      // 初始化连接指标
+      this.connectionMetrics.set(key, {
+        createdAt: new Date(),
+        lastUsed: new Date(),
+        queryCount: 0,
+        errorCount: 0
+      });
+      
       logger.info(`数据库适配器创建成功: ${connection.type} - ${connection.name}`);
       return adapter;
     } catch (error) {
+      this.updateConnectionMetrics(key, 'error');
       logger.error(`数据库适配器创建失败: ${connection.type} - ${connection.name}`, error);
       throw error;
     }
@@ -168,9 +170,7 @@ export class AdapterFactory {
    * 获取支持的数据库类型
    */
   static getSupportedDatabaseTypes(): DatabaseType[] {
-    return ['mysql', 'postgresql', 'sqlite', 'mongodb'];
-    // TODO: 添加其他支持的数据库类型
-    // return ['mysql', 'postgresql', 'sqlite', 'mongodb', 'redis', 'oracle', 'sqlserver'];
+    return ['postgresql', 'mongodb'];
   }
 
   /**
@@ -208,30 +208,204 @@ export class AdapterFactory {
       errors.push(`不支持的数据库类型: ${connection.type}`);
     }
     
-    if (connection.type !== 'sqlite') {
-      if (!connection.host?.trim()) {
-        errors.push('主机地址不能为空');
-      }
-      
-      if (!connection.port || connection.port <= 0 || connection.port > 65535) {
-        errors.push('端口号必须在1-65535之间');
-      }
-      
-      if (!connection.username?.trim()) {
-        errors.push('用户名不能为空');
-      }
+    // 验证主机地址和端口
+    if (!connection.host?.trim()) {
+      errors.push('主机地址不能为空');
     }
     
-    if (connection.type === 'sqlite') {
-      if (!connection.database?.trim()) {
-        errors.push('数据库文件路径不能为空');
-      }
-    } else {
-      if (!connection.database?.trim()) {
-        errors.push('数据库名称不能为空');
-      }
+    if (!connection.port || connection.port <= 0 || connection.port > 65535) {
+      errors.push('端口号必须在1-65535之间');
+    }
+    
+    // PostgreSQL和MongoDB都需要用户名
+    if (!connection.username?.trim()) {
+      errors.push('用户名不能为空');
+    }
+    
+    // 验证数据库名称
+    if (!connection.database?.trim()) {
+      errors.push('数据库名称不能为空');
     }
     
     return errors;
+  }
+
+  // ===========================================
+  // 多连接管理增强功能
+  // ===========================================
+
+  /**
+   * 更新连接指标
+   */
+  private static updateConnectionMetrics(key: string, action: 'used' | 'query' | 'error'): void {
+    const metrics = this.connectionMetrics.get(key);
+    if (metrics) {
+      switch (action) {
+        case 'used':
+          metrics.lastUsed = new Date();
+          break;
+        case 'query':
+          metrics.queryCount++;
+          metrics.lastUsed = new Date();
+          break;
+        case 'error':
+          metrics.errorCount++;
+          break;
+      }
+    }
+  }
+
+  /**
+   * 获取所有连接的详细状态
+   */
+  static async getDetailedConnectionStatus(): Promise<Array<{
+    key: string;
+    connected: boolean;
+    metrics: {
+      createdAt: Date;
+      lastUsed: Date;
+      queryCount: number;
+      errorCount: number;
+      uptime: string;
+    };
+  }>> {
+    const status: Array<any> = [];
+    
+    for (const [key, adapter] of this.adapters.entries()) {
+      const metrics = this.connectionMetrics.get(key);
+      const connected = await adapter.testConnection().catch(() => false);
+      
+      if (metrics) {
+        const uptime = this.formatUptime(Date.now() - metrics.createdAt.getTime());
+        
+        status.push({
+          key,
+          connected,
+          metrics: {
+            createdAt: metrics.createdAt,
+            lastUsed: metrics.lastUsed,
+            queryCount: metrics.queryCount,
+            errorCount: metrics.errorCount,
+            uptime
+          }
+        });
+      }
+    }
+    
+    return status;
+  }
+
+  /**
+   * 获取连接池统计信息
+   */
+  static getPoolStatistics(): {
+    totalConnections: number;
+    activeConnections: number;
+    connectionsByType: Record<string, number>;
+    totalQueries: number;
+    totalErrors: number;
+  } {
+    const stats = {
+      totalConnections: this.adapters.size,
+      activeConnections: 0,
+      connectionsByType: {} as Record<string, number>,
+      totalQueries: 0,
+      totalErrors: 0
+    };
+
+    for (const [key, _] of this.adapters.entries()) {
+      const [type] = key.split('_');
+      if (type) {
+        stats.connectionsByType[type] = (stats.connectionsByType[type] || 0) + 1;
+      }
+      
+      const metrics = this.connectionMetrics.get(key);
+      if (metrics) {
+        stats.totalQueries += metrics.queryCount;
+        stats.totalErrors += metrics.errorCount;
+        
+        // 如果最近5分钟内有活动，认为是活跃连接
+        if (Date.now() - metrics.lastUsed.getTime() < 5 * 60 * 1000) {
+          stats.activeConnections++;
+        }
+      }
+    }
+
+    return stats;
+  }
+
+  /**
+   * 清理空闲连接
+   */
+  static async cleanupIdleConnections(idleTimeoutMs: number = 30 * 60 * 1000): Promise<number> {
+    const now = Date.now();
+    const keysToRemove: string[] = [];
+    
+    for (const [key, metrics] of this.connectionMetrics.entries()) {
+      if (now - metrics.lastUsed.getTime() > idleTimeoutMs) {
+        keysToRemove.push(key);
+      }
+    }
+
+    // 断开空闲连接
+    for (const key of keysToRemove) {
+      try {
+        const adapter = this.adapters.get(key);
+        if (adapter) {
+          await adapter.disconnect();
+        }
+        this.adapters.delete(key);
+        this.connectionMetrics.delete(key);
+        logger.info(`清理空闲连接: ${key}`);
+      } catch (error) {
+        logger.error(`清理连接失败: ${key}`, error);
+      }
+    }
+
+    return keysToRemove.length;
+  }
+
+  /**
+   * 按类型获取适配器列表
+   */
+  static getAdaptersByType(type: 'postgresql' | 'mongodb'): string[] {
+    const keys: string[] = [];
+    for (const [key, _] of this.adapters.entries()) {
+      if (key.startsWith(type)) {
+        keys.push(key);
+      }
+    }
+    return keys;
+  }
+
+  /**
+   * 记录查询执行
+   */
+  static recordQuery(connectionId: string, type: 'postgresql' | 'mongodb'): void {
+    const key = `${type}_${connectionId}`;
+    this.updateConnectionMetrics(key, 'query');
+  }
+
+  /**
+   * 记录查询错误
+   */
+  static recordError(connectionId: string, type: 'postgresql' | 'mongodb'): void {
+    const key = `${type}_${connectionId}`;
+    this.updateConnectionMetrics(key, 'error');
+  }
+
+  /**
+   * 格式化运行时间
+   */
+  private static formatUptime(ms: number): string {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days}d ${hours % 24}h ${minutes % 60}m`;
+    if (hours > 0) return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+    return `${seconds}s`;
   }
 }

@@ -1,5 +1,14 @@
 import { MongoClient, Db, Collection } from 'mongodb';
-import type { DatabaseAdapter, SQLDialect, ColumnDefinition } from './interfaces';
+import type { 
+  DatabaseAdapter, 
+  SQLDialect, 
+  ColumnDefinition,
+  DataStatistics,
+  ColumnStatistics,
+  JoinCondition,
+  VectorSearchResult,
+  FullTextSearchConfig
+} from './interfaces';
 import type { 
   DatabaseConnection, 
   QueryResult, 
@@ -613,5 +622,535 @@ export class MongoDBAdapter implements DatabaseAdapter {
       type: this.getMongoType(firstDoc[key]),
       length: 0
     }));
+  }
+
+  // ===========================================
+  // AI语义化操作功能实现
+  // ===========================================
+
+  /**
+   * 全文搜索功能
+   * 使用MongoDB的文本搜索功能
+   */
+  async fullTextSearch(
+    tableName: string, 
+    searchText: string, 
+    columns?: string[],
+    config?: FullTextSearchConfig
+  ): Promise<QueryResult> {
+    if (!this.db) {
+      throw new Error('数据库连接未初始化');
+    }
+
+    const collection = this.db.collection(tableName);
+    const startTime = Date.now();
+
+    try {
+      let query: any;
+      
+      if (columns && columns.length > 0) {
+        // 在指定字段中搜索
+        const regexQuery = columns.map(col => ({
+          [col]: { $regex: searchText, $options: 'i' }
+        }));
+        query = { $or: regexQuery };
+      } else {
+        // 使用MongoDB的全文索引搜索
+        query = { $text: { $search: searchText } };
+      }
+
+      // 执行搜索，包含相关性分数
+      const cursor = collection.find(query);
+      
+      // 如果使用全文索引，添加分数排序
+      if (!columns || columns.length === 0) {
+        cursor.project({ score: { $meta: 'textScore' } });
+        cursor.sort({ score: { $meta: 'textScore' } });
+      }
+
+      const documents = await cursor.toArray();
+      const executionTime = Date.now() - startTime;
+
+      return {
+        rows: documents.map((doc: any) => ({ ...doc, _id: doc._id.toString() })),
+        rowCount: documents.length,
+        fields: this.generateFields(documents),
+        executionTime
+      };
+    } catch (error) {
+      logger.error('MongoDB全文搜索失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 向量相似性搜索
+   * 使用MongoDB Atlas Vector Search或自定义向量搜索
+   */
+  async vectorSearch(
+    tableName: string, 
+    vectorColumn: string, 
+    queryVector: number[], 
+    topK: number = 10
+  ): Promise<QueryResult> {
+    if (!this.db) {
+      throw new Error('数据库连接未初始化');
+    }
+
+    const collection = this.db.collection(tableName);
+    const startTime = Date.now();
+
+    try {
+      // MongoDB Atlas Vector Search aggregation pipeline
+      const pipeline = [
+        {
+          $vectorSearch: {
+            index: `${tableName}_${vectorColumn}_vector_index`,
+            path: vectorColumn,
+            queryVector: queryVector,
+            numCandidates: topK * 10,
+            limit: topK
+          }
+        },
+        {
+          $addFields: {
+            similarity: { $meta: 'vectorSearchScore' }
+          }
+        }
+      ];
+
+      const documents = await collection.aggregate(pipeline).toArray();
+      const executionTime = Date.now() - startTime;
+
+      return {
+        rows: documents.map((doc: any) => ({ 
+          ...doc, 
+          _id: doc._id.toString(),
+          similarity: doc.similarity 
+        })),
+        rowCount: documents.length,
+        fields: this.generateFields(documents),
+        executionTime
+      };
+    } catch (error) {
+      logger.error('MongoDB向量搜索失败，尝试使用余弦相似度计算:', error);
+      
+      // fallback: 使用聚合管道计算余弦相似度
+      return this.fallbackVectorSearch(tableName, vectorColumn, queryVector, topK);
+    }
+  }
+
+  /**
+   * 获取数据统计信息
+   */
+  async getDataStatistics(tableName: string, columns?: string[]): Promise<DataStatistics> {
+    if (!this.db) {
+      throw new Error('数据库连接未初始化');
+    }
+
+    const collection = this.db.collection(tableName);
+    
+    // 获取总行数
+    const totalRows = await collection.countDocuments();
+
+    // 获取集合结构
+    const sampleDocs = await collection.find({}).limit(1000).toArray();
+    const fieldAnalysis = this.analyzeDocumentStructure(sampleDocs);
+    
+    const targetFields = columns && columns.length > 0 
+      ? fieldAnalysis.filter(field => columns.includes(field.name))
+      : fieldAnalysis;
+
+    // 为每个字段收集统计信息
+    const columnStats: ColumnStatistics[] = [];
+    
+    for (const field of targetFields) {
+      const stats = await this.getMongoColumnStatistics(collection, field);
+      columnStats.push(stats);
+    }
+
+    return {
+      tableName,
+      totalRows,
+      columns: columnStats
+    };
+  }
+
+  /**
+   * 智能连表查询（MongoDB的聚合查询）
+   */
+  async intelligentJoin(tables: string[], conditions?: JoinCondition[]): Promise<QueryResult> {
+    if (!this.db) {
+      throw new Error('数据库连接未初始化');
+    }
+
+    if (tables.length < 2) {
+      throw new Error('连表查询至少需要2个表');
+    }
+
+    const firstTable = tables[0];
+    if (!firstTable) {
+      throw new Error('表名不能为空');
+    }
+
+    const collection = this.db.collection(firstTable);
+    const startTime = Date.now();
+
+    try {
+      // 构建聚合管道
+      const pipeline: any[] = [];
+
+      if (conditions && conditions.length > 0) {
+        // 使用提供的连接条件
+        for (const condition of conditions) {
+          if (condition.rightTable !== tables[0]) {
+            pipeline.push({
+              $lookup: {
+                from: condition.rightTable,
+                localField: this.extractFieldFromCondition(condition.onCondition, 'left'),
+                foreignField: this.extractFieldFromCondition(condition.onCondition, 'right'),
+                as: condition.rightTable
+              }
+            });
+          }
+        }
+      } else {
+        // 自动推断连接条件（基于_id和外键约定）
+        for (let i = 1; i < tables.length; i++) {
+          const currentTable = tables[i];
+          if (firstTable && currentTable) {
+            const foreignKey = await this.inferMongoJoinField(firstTable, currentTable);
+            pipeline.push({
+              $lookup: {
+                from: currentTable,
+                localField: foreignKey.localField,
+                foreignField: foreignKey.foreignField,
+                as: currentTable
+              }
+            });
+          }
+        }
+      }
+
+      const documents = await collection.aggregate(pipeline).toArray();
+      const executionTime = Date.now() - startTime;
+
+      return {
+        rows: documents.map((doc: any) => ({ ...doc, _id: doc._id.toString() })),
+        rowCount: documents.length,
+        fields: this.generateFields(documents),
+        executionTime
+      };
+    } catch (error) {
+      logger.error('MongoDB智能连表查询失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 创建向量索引
+   */
+  async createVectorIndex(tableName: string, columnName: string, dimensions: number): Promise<void> {
+    if (!this.db) {
+      throw new Error('数据库连接未初始化');
+    }
+
+    const collection = this.db.collection(tableName);
+    const indexName = `${tableName}_${columnName}_vector_index`;
+
+    try {
+      // MongoDB Atlas Vector Search索引配置
+      const indexSpec = {
+        name: indexName,
+        type: 'vectorSearch',
+        definition: {
+          fields: [
+            {
+              type: 'vector',
+              path: columnName,
+              numDimensions: dimensions,
+              similarity: 'cosine'
+            }
+          ]
+        }
+      };
+
+      // 注意：实际的向量索引创建需要通过Atlas UI或管理API
+      logger.warn('MongoDB向量索引需要通过Atlas Vector Search创建');
+      logger.info('建议的索引配置:', JSON.stringify(indexSpec, null, 2));
+      
+    } catch (error) {
+      logger.error('MongoDB向量索引创建失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 创建全文搜索索引
+   */
+  async createFullTextIndex(tableName: string, columns: string[], language: string = 'english'): Promise<void> {
+    if (!this.db) {
+      throw new Error('数据库连接未初始化');
+    }
+
+    const collection = this.db.collection(tableName);
+    const indexName = `${tableName}_${columns.join('_')}_text`;
+
+    try {
+      // 创建文本索引
+      const indexSpec: Record<string, any> = {};
+      columns.forEach(column => {
+        indexSpec[column] = 'text';
+      });
+
+      await collection.createIndex(indexSpec, {
+        name: indexName,
+        default_language: language,
+        language_override: 'language'
+      });
+
+      logger.info(`MongoDB全文索引创建成功: ${indexName}`);
+    } catch (error) {
+      logger.error('MongoDB全文索引创建失败:', error);
+      throw error;
+    }
+  }
+
+  // ===========================================
+  // 私有辅助方法
+  // ===========================================
+
+  /**
+   * 备用向量搜索（使用聚合管道计算余弦相似度）
+   */
+  private async fallbackVectorSearch(
+    tableName: string,
+    vectorColumn: string,
+    queryVector: number[],
+    topK: number
+  ): Promise<QueryResult> {
+    const collection = this.db!.collection(tableName);
+    const startTime = Date.now();
+
+    // 使用聚合管道计算余弦相似度
+    const pipeline = [
+      {
+        $match: {
+          [vectorColumn]: { $exists: true, $ne: null }
+        }
+      },
+      {
+        $addFields: {
+          similarity: {
+            $let: {
+              vars: {
+                dotProduct: {
+                  $reduce: {
+                    input: { $range: [0, { $size: `$${vectorColumn}` }] },
+                    initialValue: 0,
+                    in: {
+                      $add: [
+                        '$$value',
+                        {
+                          $multiply: [
+                            { $arrayElemAt: [`$${vectorColumn}`, '$$this'] },
+                            { $arrayElemAt: [queryVector, '$$this'] }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                },
+                vecNorm: {
+                  $sqrt: {
+                    $reduce: {
+                      input: `$${vectorColumn}`,
+                      initialValue: 0,
+                      in: { $add: ['$$value', { $multiply: ['$$this', '$$this'] }] }
+                    }
+                  }
+                },
+                queryNorm: Math.sqrt(queryVector.reduce((sum, val) => sum + val * val, 0))
+              },
+              in: {
+                $divide: [
+                  '$$dotProduct',
+                  { $multiply: ['$$vecNorm', '$$queryNorm'] }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $sort: { similarity: -1 }
+      },
+      {
+        $limit: topK
+      }
+    ];
+
+    const documents = await collection.aggregate(pipeline).toArray();
+    const executionTime = Date.now() - startTime;
+
+    return {
+      rows: documents.map(doc => ({ ...doc, _id: doc._id.toString() })),
+      rowCount: documents.length,
+      fields: this.generateFields(documents),
+      executionTime
+    };
+  }
+
+  /**
+   * 分析文档结构
+   */
+  private analyzeDocumentStructure(documents: any[]): Array<{ name: string; type: string }> {
+    const fieldMap = new Map<string, Set<string>>();
+    
+    documents.forEach(doc => {
+      Object.entries(doc).forEach(([key, value]) => {
+        if (!fieldMap.has(key)) {
+          fieldMap.set(key, new Set());
+        }
+        fieldMap.get(key)!.add(this.getMongoType(value));
+      });
+    });
+
+    return Array.from(fieldMap.entries()).map(([name, types]) => ({
+      name,
+      type: Array.from(types).join(' | ')
+    }));
+  }
+
+  /**
+   * 获取MongoDB字段统计信息
+   */
+  private async getMongoColumnStatistics(
+    collection: Collection,
+    field: { name: string; type: string }
+  ): Promise<ColumnStatistics> {
+    const fieldName = field.name;
+    
+    // 基础统计
+    const pipeline = [
+      {
+        $group: {
+          _id: null,
+          nonNullCount: {
+            $sum: {
+              $cond: [{ $ne: [`$${fieldName}`, null] }, 1, 0]
+            }
+          },
+          uniqueValues: { $addToSet: `$${fieldName}` }
+        }
+      },
+      {
+        $project: {
+          nonNullCount: 1,
+          uniqueCount: { $size: '$uniqueValues' }
+        }
+      }
+    ];
+
+    const [basicStats] = await collection.aggregate(pipeline).toArray();
+    
+    // 数值类型的额外统计
+    let minValue, maxValue, avgValue;
+    if (field.type.includes('Number')) {
+      const numericPipeline = [
+        {
+          $match: {
+            [fieldName]: { $type: 'number' }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            min: { $min: `$${fieldName}` },
+            max: { $max: `$${fieldName}` },
+            avg: { $avg: `$${fieldName}` }
+          }
+        }
+      ];
+      
+      const [numStats] = await collection.aggregate(numericPipeline).toArray();
+      if (numStats) {
+        minValue = numStats.min;
+        maxValue = numStats.max;
+        avgValue = numStats.avg;
+      }
+    }
+
+    // 最常见的值
+    const commonValuesPipeline = [
+      {
+        $match: {
+          [fieldName]: { $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: `$${fieldName}`,
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      },
+      {
+        $limit: 5
+      }
+    ];
+
+    const commonValues = await collection.aggregate(commonValuesPipeline).toArray();
+
+    return {
+      name: fieldName,
+      type: field.type,
+      nonNullCount: basicStats?.nonNullCount || 0,
+      uniqueCount: basicStats?.uniqueCount || 0,
+      minValue,
+      maxValue,
+      avgValue,
+      mostCommonValues: commonValues.map((item: any) => ({
+        value: item._id,
+        count: item.count
+      }))
+    };
+  }
+
+  /**
+   * 推断MongoDB连接字段
+   */
+  private async inferMongoJoinField(leftCollection: string, rightCollection: string): Promise<{ localField: string; foreignField: string }> {
+    // MongoDB连接推断逻辑
+    // 1. 查找形如 rightCollection + '_id' 的字段
+    // 2. 默认使用 '_id' 作为外键
+    
+    const singularRight = rightCollection.endsWith('s') 
+      ? rightCollection.slice(0, -1) 
+      : rightCollection;
+    
+    return {
+      localField: `${singularRight}_id`,
+      foreignField: '_id'
+    };
+  }
+
+  /**
+   * 从连接条件中提取字段名
+   */
+  private extractFieldFromCondition(condition: string, side: 'left' | 'right'): string {
+    // 简单的条件解析，实际应用中可能需要更复杂的解析
+    const parts = condition.split('=').map(part => part.trim());
+    if (parts.length === 2) {
+      const fieldPart = side === 'left' ? parts[0] : parts[1];
+      if (fieldPart && fieldPart.includes('.')) {
+        const splitResult = fieldPart.split('.')[1];
+        return splitResult || '_id';
+      }
+      return fieldPart || '_id';
+    }
+    return '_id'; // 默认值
   }
 }

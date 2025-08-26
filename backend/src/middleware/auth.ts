@@ -1,7 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { Database } from 'sqlite';
-import sqlite3 from 'sqlite3';
 import { ApiKeyService } from '../services/ApiKeyService';
 import { UserService } from '../services/UserService';
 import { AppError } from '../types';
@@ -27,16 +25,14 @@ declare global {
 }
 
 export class AuthMiddleware {
-  private db: Database<sqlite3.Database, sqlite3.Statement>;
   private jwtSecret: string;
   private apiKeyService: ApiKeyService;
   private userService: UserService;
 
-  constructor(db: Database<sqlite3.Database, sqlite3.Statement>) {
-    this.db = db;
+  constructor() {
     this.jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
-    this.apiKeyService = new ApiKeyService(db);
-    this.userService = new UserService(db);
+    this.apiKeyService = ApiKeyService.getInstance();
+    this.userService = UserService.getInstance();
   }
 
   /**
@@ -268,6 +264,6 @@ export class AuthMiddleware {
 }
 
 // 创建中间件实例的工厂函数
-export function createAuthMiddleware(db: Database<sqlite3.Database, sqlite3.Statement>) {
-  return new AuthMiddleware(db);
+export function createAuthMiddleware() {
+  return new AuthMiddleware();
 }

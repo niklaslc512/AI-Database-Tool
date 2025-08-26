@@ -1,15 +1,13 @@
 import { Router } from 'express';
-import { Database } from 'sqlite';
-import sqlite3 from 'sqlite3';
 import { AuthorizationService } from '../services/AuthorizationService';
 import { createAuthMiddleware } from '../middleware/auth';
 import { AppError } from '../types';
 import { logger } from '../utils/logger';
 
-export function createAuthRoutes(db: Database<sqlite3.Database, sqlite3.Statement>): Router {
+export function createAuthRoutes(): Router {
   const router = Router();
-  const authorizationService = new AuthorizationService(db);
-  const authMiddleware = createAuthMiddleware(db);
+  const authorizationService = AuthorizationService.getInstance();
+  const authMiddleware = createAuthMiddleware();
 
   // 创建外部授权令牌
   router.post('/external/create', 

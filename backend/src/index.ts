@@ -9,7 +9,7 @@ import { createServer } from 'http';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
 import { requestLogger } from './utils/logger';
-import { connectDatabase, getDatabase } from './config/database';
+import { connectDatabase } from './config/database';
 import { createRoutes } from './routes';
 
 // 加载环境变量
@@ -79,9 +79,8 @@ class App {
     });
 
     console.log('🔄 初始化API路由...');
-    // 获取数据库连接并创建API路由
-    const db = await getDatabase();
-    const routes = createRoutes(db);
+    // 创建API路由（不再需要传递数据库实例）
+    const routes = createRoutes();
     const apiPrefix = process.env.API_PREFIX || '/api/v1';
     this.app.use(apiPrefix, routes);
     console.log(`✅ API路由注册成功: ${apiPrefix}`);

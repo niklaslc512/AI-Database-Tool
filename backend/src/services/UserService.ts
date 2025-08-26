@@ -1,8 +1,6 @@
 import bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { Database } from 'sqlite';
-import sqlite3 from 'sqlite3';
 import { 
   User, 
   CreateUserRequest, 
@@ -17,6 +15,7 @@ import {
 } from '../types';
 import { AppError } from '../types';
 import { BusinessLogger } from '../utils/enhancedLogger';
+import { databaseManager } from '../config/database';
 
 /**
  * 用户服务类 - 负责用户账户管理的核心业务逻辑
@@ -26,7 +25,7 @@ import { BusinessLogger } from '../utils/enhancedLogger';
  * @version 1.0.0
  * @example
  * ```typescript
- * const userService = new UserService(database);
+ * const userService = UserService.getInstance();
  * const user = await userService.createUser({
  *   username: '张三',
  *   email: 'zhangsan@example.com',
@@ -35,7 +34,7 @@ import { BusinessLogger } from '../utils/enhancedLogger';
  * ```
  */
 export class UserService {
-  private db: Database<sqlite3.Database, sqlite3.Statement>;
+  private static instance: UserService;
   private saltRounds: number;
   private jwtSecret: string;
   private jwtExpiresIn: string;
@@ -43,15 +42,62 @@ export class UserService {
 
   /**
    * 创建UserService实例
-   * 
-   * @param db - SQLite数据库实例
    */
-  constructor(db: Database<sqlite3.Database, sqlite3.Statement>) {
-    this.db = db;
+  private constructor() {
     this.saltRounds = parseInt(process.env.BCRYPT_ROUNDS || '12');
     this.jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
     this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
     this.logger = new BusinessLogger('UserService');
+  }
+
+  /**
+   * 获取UserService单例实例
+   */
+  static getInstance(): UserService {
+    if (!UserService.instance) {
+      UserService.instance = new UserService();
+    }
+    return UserService.instance;
+  }
+
+  /**
+   * 获取数据库实例
+   */
+  private async getDatabase(): Promise<any> {
+    return databaseManager.getDatabase();
+  }
+
+  /**
+   * 执行查询语句，返回单个结果
+   */
+  private async executeQuery<T = any>(
+    sql: string, 
+    params?: any[]
+  ): Promise<T> {
+    const db = await this.getDatabase();
+    return db.get(sql, params) as Promise<T>;
+  }
+
+  /**
+   * 执行查询语句，返回所有结果
+   */
+  private async executeAll<T = any>(
+    sql: string, 
+    params?: any[]
+  ): Promise<T[]> {
+    const db = await this.getDatabase();
+    return db.all(sql, params) as Promise<T[]>;
+  }
+
+  /**
+   * 执行插入、更新或删除语句
+   */
+  private async executeRun(
+    sql: string, 
+    params?: any[]
+  ): Promise<any> {
+    const db = await this.getDatabase();
+    return db.run(sql, params);
   }
 
   /**
@@ -85,9 +131,9 @@ export class UserService {
       
       // 检查用户名和邮箱是否已存在
       this.logger.debug('🔍 检查用户名和邮箱是否已存在');
-      const existingUser = await this.db.get(`
+      const existingUser = await this.executeQuery(`
         SELECT id FROM users WHERE username = ? OR email = ?
-      `, userData.username, userData.email);
+      `, [userData.username, userData.email]);
 
       if (existingUser) {
         this.logger.warn('⚠️ 用户名或邮箱已存在', { username: userData.username, email: userData.email });
@@ -100,11 +146,11 @@ export class UserService {
       const passwordHash = await bcrypt.hash(userData.password, salt);
 
       // 插入用户数据
-      const result = await this.db.run(`
+      const result = await this.executeRun(`
         INSERT INTO users (
           username, email, password_hash, salt, role, display_name, settings
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
-      `,
+      `, [
         userData.username,
         userData.email,
         passwordHash,
@@ -121,7 +167,7 @@ export class UserService {
             security: true
           }
         })
-      );
+      ]);
 
       const userId = result.lastID?.toString() || '';
       this.logger.info('✅ 用户创建成功', { userId, username: userData.username });
@@ -155,9 +201,9 @@ export class UserService {
       
       // 查找用户
       this.logger.debug('🔍 查找用户信息');
-      const user = await this.db.get(`
+      const user = await this.executeQuery(`
         SELECT * FROM users WHERE username = ? OR email = ?
-      `, loginData.username, loginData.username) as any;
+      `, [loginData.username, loginData.username]) as any;
 
       if (!user) {
         await this.logLoginAttempt(loginData.username, false, '用户不存在', clientInfo);
@@ -178,11 +224,11 @@ export class UserService {
       }
 
       // 更新登录信息
-      await this.db.run(`
+      await this.executeRun(`
         UPDATE users 
         SET last_login_at = CURRENT_TIMESTAMP, login_count = login_count + 1 
         WHERE id = ?
-      `, user.id);
+      `, [user.id]);
 
       // 记录登录成功
       await this.logLoginAttempt(loginData.username, true, null, clientInfo, user.id);
@@ -219,7 +265,7 @@ export class UserService {
    * 根据ID获取用户
    */
   async getUserById(id: string): Promise<User> {
-    const user = await this.db.get('SELECT * FROM users WHERE id = ?', id) as any;
+    const user = await this.executeQuery('SELECT * FROM users WHERE id = ?', [id]) as any;
     if (!user) {
       throw new AppError('用户不存在', 404);
     }
@@ -230,7 +276,7 @@ export class UserService {
    * 根据用户名获取用户
    */
   async getUserByUsername(username: string): Promise<User> {
-    const user = await this.db.get('SELECT * FROM users WHERE username = ?', username) as any;
+    const user = await this.executeQuery('SELECT * FROM users WHERE username = ?', [username]) as any;
     if (!user) {
       throw new AppError('用户不存在', 404);
     }
@@ -242,14 +288,14 @@ export class UserService {
    */
   async updateUser(id: string, updateData: UpdateUserRequest): Promise<User> {
     try {
-      const existingUser = await this.db.get('SELECT * FROM users WHERE id = ?', id) as any;
+      const existingUser = await this.executeQuery('SELECT * FROM users WHERE id = ?', [id]) as any;
       if (!existingUser) {
         throw new AppError('用户不存在', 404);
       }
 
       // 检查邮箱是否被其他用户使用
       if (updateData.email && updateData.email !== existingUser.email) {
-        const emailExists = await this.db.get('SELECT id FROM users WHERE email = ? AND id != ?', updateData.email, id);
+        const emailExists = await this.executeQuery('SELECT id FROM users WHERE email = ? AND id != ?', [updateData.email, id]);
         if (emailExists) {
           throw new AppError('邮箱已被使用', 400);
         }
@@ -282,7 +328,7 @@ export class UserService {
       values.push(id);
 
       const updateQuery = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`;
-      await this.db.run(updateQuery, ...values);
+      await this.executeRun(updateQuery, values);
 
       this.logger.info('✅ 更新用户信息成功', { userId: id, username: existingUser.username });
       this.logger.userAction(id, '更新用户信息', { updates });
@@ -298,12 +344,12 @@ export class UserService {
    */
   async deleteUser(id: string): Promise<void> {
     try {
-      const user = await this.db.get('SELECT username FROM users WHERE id = ?', id) as any;
+      const user = await this.executeQuery('SELECT username FROM users WHERE id = ?', [id]) as any;
       if (!user) {
         throw new AppError('用户不存在', 404);
       }
 
-      await this.db.run('DELETE FROM users WHERE id = ?', id);
+      await this.executeRun('DELETE FROM users WHERE id = ?', [id]);
       this.logger.info('✅ 删除用户成功', { userId: id, username: user.username });
       this.logger.userAction(id, '删除用户', { username: user.username });
     } catch (error) {
@@ -338,7 +384,7 @@ export class UserService {
 
       // 获取总数
       const countQuery = `SELECT COUNT(*) as count FROM users ${whereClause}`;
-      const countResult = await this.db.get(countQuery, ...values) as any;
+      const countResult = await this.executeQuery(countQuery, values) as any;
       const total = countResult.count;
 
       // 获取用户列表
@@ -349,7 +395,7 @@ export class UserService {
         LIMIT ? OFFSET ?
       `;
       
-      const users = await this.db.all(usersQuery, ...values, limit, offset) as any[];
+      const users = await this.executeAll(usersQuery, [...values, limit, offset]) as any[];
       
       return {
         data: users.map(user => this.mapDbUserToUser(user)),
@@ -373,7 +419,7 @@ export class UserService {
    */
   async changePassword(id: string, oldPassword: string, newPassword: string): Promise<void> {
     try {
-      const user = await this.db.get('SELECT * FROM users WHERE id = ?', id) as any;
+      const user = await this.executeQuery('SELECT * FROM users WHERE id = ?', [id]) as any;
       if (!user) {
         throw new AppError('用户不存在', 404);
       }
@@ -389,11 +435,11 @@ export class UserService {
       const passwordHash = await bcrypt.hash(newPassword, salt);
 
       // 更新密码
-      await this.db.run(`
+      await this.executeRun(`
         UPDATE users 
         SET password_hash = ?, salt = ?, updated_at = CURRENT_TIMESTAMP 
         WHERE id = ?
-      `, passwordHash, salt, id);
+      `, [passwordHash, salt, id]);
 
       this.logger.info('✅ 用户修改密码成功', { userId: id, username: user.username });
       this.logger.userAction(id, '修改密码', { username: user.username });
@@ -416,19 +462,19 @@ export class UserService {
     userId?: string
   ): Promise<void> {
     try {
-      await this.db.run(`
+      await this.executeRun(`
         INSERT INTO login_logs (
           user_id, username, ip_address, user_agent, 
           login_method, success, failure_reason
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
-        userId || null,
+        [userId || null,
         username,
         clientInfo?.ip || null,
         clientInfo?.userAgent || null,
         'password',
         success,
-        failureReason || null
+        failureReason || null]
       );
     } catch (error) {
       this.logger.error('❌ 记录登录日志失败', error as Error, { username, success });

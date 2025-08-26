@@ -1,15 +1,13 @@
 import { Router } from 'express';
-import { Database } from 'sqlite';
-import sqlite3 from 'sqlite3';
 import { UserService } from '../services/UserService';
 import { createAuthMiddleware } from '../middleware/auth';
 import { AppError, UserRole, UserStatus } from '../types';
 import { logger } from '../utils/logger';
 
-export function createUserRoutes(db: Database<sqlite3.Database, sqlite3.Statement>): Router {
+export function createUserRoutes(): Router {
   const router = Router();
-  const userService = new UserService(db);
-  const authMiddleware = createAuthMiddleware(db);
+  const userService = UserService.getInstance();
+  const authMiddleware = createAuthMiddleware();
 
   // 用户登录
   router.post('/auth/login', async (req, res) => {

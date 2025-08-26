@@ -1,15 +1,17 @@
-# AI数据库管理系统设计文档
+# AI语义化数据库管理系统设计文档
 
 ## 1. 项目概览
 
 ### 1.1 系统目标
-设计一个通用的由大模型驱动的数据库管理系统，支持多类型数据库操作，通过自然语言交互简化数据库管理流程。
+设计一个由大模型驱动的AI语义化数据库管理系统，专注于支持PostgreSQL和MongoDB，通过自然语言交互实现智能数据库操作。系统支持管理多个数据库连接，提供全文搜索、向量搜索、连表查询和数据统计等高级AI功能。
 
 ### 1.2 核心价值
-- **智能化操作**: 用户可以通过自然语言描述需求，AI自动生成SQL语句
-- **多数据库支持**: 统一界面管理不同类型的数据库
-- **安全性**: 提供权限控制和操作审计
-- **易用性**: 直观的Web界面，降低数据库操作门槛
+- **AI语义化操作**: 通过自然语言描述需求，AI智能理解并生成相应的查询语句
+- **多连接管理**: 统一界面管理多个PostgreSQL和MongoDB数据库连接
+- **全文/向量搜索**: 支持传统全文搜索和基于向量的语义搜索
+- **智能连表查询**: AI自动推断表关系，生成复杂的连表查询
+- **数据统计分析**: 提供智能的数据统计和分析功能
+- **连接池管理**: 高效的数据库连接池管理和复用
 
 ### 1.3 技术栈
 
@@ -20,64 +22,113 @@
 - **状态管理**: Pinia
 - **路由**: Vue Router
 - **HTTP客户端**: Axios
-- **组件库**: Element Plus / Ant Design Vue
+- **组件库**: Element Plus
+- **可视化**: D3.js, ECharts（用于数据和向量可视化）
 
 #### 后端技术栈
-- **运行时**: Node.js
-- **框架**: Express.js
-- **语言**: TypeScript
-- **数据库ORM**: Prisma / TypeORM
-- **认证**: JWT
-- **文档**: Swagger
-- **日志**: Winston
+- **运行时**: Node.js 22+
+- **框架**: Express.js 5 (beta)
+- **语言**: TypeScript（全项目类型安全）
+- **数据库驱动**: pg (PostgreSQL), mongodb (MongoDB)
+- **连接管理**: 自定义连接池管理器，支持多实例负载均衡
+- **AI集成**: OpenAI API, 本地LLM支持，多连接智能路由
+- **向量处理**: pgvector, MongoDB Atlas Vector Search
+- **缓存**: Redis（查询结果缓存，会话管理）
+- **监控**: 自定义性能监控，连接状态追踪
+- **日志**: Winston（结构化日志，按连接分类）
+
+#### AI和搜索技术
+- **向量数据库**: PostgreSQL + pgvector扩展
+- **文档数据库**: MongoDB + 全文索引
+- **向量嵌入**: OpenAI Embeddings, 本地嵌入模型
+- **自然语言处理**: 大语言模型API
+- **语义分析**: 自定义语义分析引擎
 
 ## 2. 系统架构
 
-### 2.1 整体架构图
+### 2.1 AI语义化多连接管理架构图
 
 ```mermaid
 graph TB
-    subgraph "前端层"
-        A[Vue3 Web界面]
-        B[状态管理 Pinia]
-        C[路由管理]
+    subgraph "前端界面层"
+        A[连接管理界面]
+        B[AI查询工作台]
+        C[语义搜索面板]
+        D[数据统计仪表板]
+        E[向量可视化组件]
     end
     
-    subgraph "后端层"
-        D[Express API Gateway]
-        E[认证中间件]
-        F[业务逻辑层]
-        G[数据库连接池]
+    subgraph "AI语义处理层"
+        F[自然语言理解NLU]
+        G[意图识别引擎]
+        H[语义查询生成器]
+        I[向量嵌入服务]
+        J[智能分析引擎]
     end
     
-    subgraph "AI服务层"
-        H[大模型API]
-        I[SQL生成器]
-        J[自然语言处理]
+    subgraph "连接管理层"
+        K[连接池管理器]
+        L[适配器工厂]
+        M[会话管理器]
+        N[负载均衡器]
     end
     
-    subgraph "数据存储层"
-        K[MySQL]
-        L[PostgreSQL]
-        M[SQLite]
-        N[MongoDB]
-        O[系统配置数据库]
+    subgraph "数据库适配层"
+        O[PostgreSQL适配器池]
+        P[MongoDB适配器池]
+        Q[查询优化器]
+        R[结果缓存层]
     end
     
-    A --> D
-    B --> A
-    C --> A
-    D --> E
-    E --> F
+    subgraph "AI增强功能模块"
+        S[全文搜索引擎]
+        T[向量搜索引擎]
+        U[智能连表分析]
+        V[数据统计分析]
+        W[查询性能优化]
+    end
+    
+    subgraph "多数据库实例"
+        X1[PostgreSQL实例1]
+        X2[PostgreSQL实例2]
+        Y1[MongoDB实例1]
+        Y2[MongoDB实例2]
+        Z[更多数据库...]
+    end
+    
+    A --> K
+    B --> F
+    C --> H
+    D --> J
+    E --> I
+    
     F --> G
-    F --> H
-    H --> I
-    I --> J
-    G --> K
-    G --> L
-    G --> M
-    G --> N
-    F --> O
+    G --> H
+    H --> L
+    I --> T
+    J --> V
+    
+    K --> L
+    L --> O
+    L --> P
+    M --> N
+    N --> Q
+    
+    O --> S
+    O --> T
+    O --> U
+    O --> X1
+    O --> X2
+    
+    P --> S
+    P --> T
+    P --> V
+    P --> Y1
+    P --> Y2
+    
+    Q --> W
+    R --> O
+    R --> P
 ```
 
 ### 2.2 模块架构
@@ -109,20 +160,35 @@ graph LR
 
 ## 3. 核心功能需求
 
-### 3.1 数据库连接管理
+### 3.1 多数据库连接管理
+
+#### 3.1.1 连接生命周期管理
+- **连接创建**: 支持创建和配置多个PostgreSQL/MongoDB连接
+- **连接验证**: 实时检测连接状态和健康度
+- **连接复用**: 智能连接池管理，提高连接利用效率
+- **连接监控**: 实时监控连接性能和使用统计
+- **连接清理**: 自动清理空闲和异常连接
+
+#### 3.1.2 连接池管理
+- **动态扩缩容**: 根据负载动态调整连接池大小
+- **负载均衡**: 智能分配查询到不同的数据库实例
+- **故障转移**: 连接失败时自动切换到备用连接
+- **性能优化**: 连接预热和保活机制
 
 #### 3.1.1 支持的数据库类型
-- **关系型数据库**: MySQL, PostgreSQL, SQLite, SQL Server, Oracle
-- **NoSQL数据库**: MongoDB, Redis
-- **云数据库**: AWS RDS, Azure SQL, Google Cloud SQL
-- **时序数据库**: InfluxDB, TimescaleDB
+- **关系型数据库**: PostgreSQL（支持向量搜索扩展pgvector）
+- **NoSQL数据库**: MongoDB（支持Atlas Vector Search和全文搜索）
 
-#### 3.1.2 连接配置
+#### 3.1.2 AI语义化功能支持
+- **PostgreSQL**: 全文搜索、向量搜索（pgvector）、智能连表、数据统计
+- **MongoDB**: 全文搜索、向量搜索（Atlas Vector Search）、聚合查询、文档分析
+
+#### 3.1.3 多连接管理配置
 ```typescript
 interface DatabaseConnection {
   id: string;
   name: string;
-  type: DatabaseType;
+  type: 'postgresql' | 'mongodb';
   host: string;
   port: number;
   database: string;
@@ -130,26 +196,58 @@ interface DatabaseConnection {
   password: string;
   ssl?: boolean;
   connectionString?: string;
-  metadata?: {
-    description: string;
+  // 连接元数据
+  metadata: {
+    description?: string;
+    environment: 'development' | 'staging' | 'production' | 'testing';
     tags: string[];
-    environment: 'development' | 'staging' | 'production';
+    createdAt: Date;
+    lastUsed?: Date;
+  };
+  // AI功能配置
+  aiFeatures: {
+    enableVectorSearch: boolean;
+    enableFullTextSearch: boolean;
+    enableSemanticAnalysis: boolean;
+    vectorDimensions?: number;
+    searchLanguage: string;
+    autoIndexing: boolean;
+  };
+  // 连接池配置
+  poolConfig?: {
+    maxConnections: number;
+    minConnections: number;
+    acquireTimeout: number;
+    idleTimeout: number;
   };
 }
 ```
 
-### 3.2 AI驱动的查询功能
+### 3.2 AI语义化查询功能
 
-#### 3.2.1 自然语言查询
-- 用户输入自然语言描述
-- AI解析用户意图
-- 生成对应的SQL语句
-- 执行前预览和确认
+#### 3.2.1 智能语义查询
+- **自然语言理解**: 深度理解用户的查询意图和语义
+- **智能SQL生成**: 根据语义生成PostgreSQL或MongoDB查询语句
+- **语义相似性搜索**: 基于向量嵌入的语义搜索功能
+- **多语言支持**: 支持中文、英文等多语言查询
 
-#### 3.2.2 查询优化建议
-- 性能分析
-- 索引建议
-- 查询重写建议
+#### 3.2.2 全文搜索增强
+- **PostgreSQL**: 使用内置全文搜索功能，支持中文分词
+- **MongoDB**: 使用文本索引和正则表达式搜索
+- **相关性排序**: 根据匹配度和相关性对结果排序
+- **高亮显示**: 在搜索结果中高亮显示匹配的关键词
+
+#### 3.2.3 向量搜索功能
+- **PostgreSQL + pgvector**: 支持高维向量相似性搜索
+- **MongoDB Atlas Vector Search**: 云端向量搜索服务
+- **语义嵌入**: 将文本内容转换为向量表示
+- **相似度计算**: 支持余弦相似度、欧几里得距离等
+
+#### 3.2.4 智能连表查询
+- **关系推断**: AI自动识别表之间的关联关系
+- **智能JOIN**: 根据外键和命名约定自动生成连表查询
+- **复杂聚合**: 支持跨表的复杂统计和分析查询
+- **查询优化**: 自动优化查询性能和执行计划
 
 #### 3.2.3 AI功能流程
 ```mermaid
@@ -167,76 +265,165 @@ flowchart TD
     J --> D
 ```
 
-### 3.3 数据库操作功能
+### 3.3 AI增强的数据库操作
 
-#### 3.3.1 表管理
-- 表结构查看
-- 创建/修改/删除表
-- 索引管理
-- 约束管理
+#### 3.3.1 智能表管理
+- **结构分析**: AI分析表结构和数据类型分布
+- **索引建议**: 基于查询模式自动推荐索引创建
+- **向量索引**: 自动创建和管理向量搜索索引
+- **全文索引**: 智能配置全文搜索索引
 
-#### 3.3.2 数据操作
-- 数据查询和筛选
-- 数据插入/更新/删除
-- 批量导入/导出
-- 数据备份和恢复
+#### 3.3.2 语义化数据统计
+- **智能统计**: 自动分析数据分布、异常值、缺失值
+- **列相关性**: 分析不同列之间的相关性和依赖关系
+- **数据质量**: 评估数据完整性和一致性
+- **趋势分析**: 识别数据中的时间趋势和模式
 
-#### 3.3.3 数据可视化
-- 查询结果表格展示
-- 图表生成（柱状图、折线图、饼图）
-- 数据关系图
-- 实时数据监控
+#### 3.3.3 智能数据可视化
+- **自适应图表**: 根据数据类型自动选择合适的可视化方式
+- **语义关系图**: 展示数据实体之间的语义关系
+- **向量空间可视化**: 可视化高维向量数据的分布
+- **交互式探索**: 支持数据的交互式探索和分析
+
+#### 3.3.4 数据操作增强
+- **批量处理**: 支持大规模数据的批量导入和处理
+- **数据清洗**: AI辅助的数据清洗和标准化
+- **格式转换**: 智能的数据格式转换和迁移
+- **增量更新**: 支持数据的增量更新和同步
 
 ## 4. 前端架构设计
 
-### 4.1 组件层次结构
+### 4.1 多连接管理界面组件
 
 ```mermaid
 graph TD
-    A[App根组件] --> B[布局组件Layout]
-    B --> C[侧边栏Sidebar]
-    B --> D[主内容区MainContent]
-    B --> E[头部导航Header]
+    A[App根组件] --> B[主布局MainLayout]
+    B --> C[连接管理面板ConnectionPanel]
+    B --> D[AI工作台AIWorkspace]
+    B --> E[状态监控StatusMonitor]
     
     C --> F[连接列表ConnectionList]
-    C --> G[数据库浏览器DatabaseBrowser]
+    C --> G[连接创建器ConnectionCreator]
+    C --> H[连接监控ConnectionMonitor]
     
-    D --> H[查询编辑器QueryEditor]
-    D --> I[结果展示ResultViewer]
-    D --> J[AI助手AIAssistant]
+    D --> I[多标签查询器MultiTabQuery]
+    D --> J[AI语义搜索SemanticSearch]
+    D --> K[数据可视化DataVisualization]
+    D --> L[结果展示ResultViewer]
     
-    E --> K[用户菜单UserMenu]
-    E --> L[连接状态ConnectionStatus]
+    E --> M[连接状态面板ConnectionStatus]
+    E --> N[性能指标面板PerformanceMetrics]
+    E --> O[系统日志LogViewer]
+    
+    F --> P[连接卡片ConnectionCard]
+    P --> Q[连接操作菜单ConnectionActions]
+    
+    I --> R[查询标签页QueryTab]
+    R --> S[SQL编辑器SQLEditor]
+    R --> T[AI助手AIAssistant]
 ```
 
-### 4.2 状态管理
+### 4.2 多连接管理状态设计
 
 ```typescript
-// Pinia Store结构
+// 多连接管理的Pinia Store结构
 interface AppState {
   user: UserState;
-  connections: ConnectionState;
-  queries: QueryState;
-  ai: AIState;
+  connections: MultiConnectionState;
+  queries: MultiQueryState;
+  ai: EnhancedAIState;
+  monitoring: MonitoringState;
 }
 
-interface ConnectionState {
-  activeConnection: DatabaseConnection | null;
+// 多连接状态管理
+interface MultiConnectionState {
+  // 连接管理
+  activeConnections: Map<string, DatabaseConnection>;
   connectionList: DatabaseConnection[];
-  connectionStatus: Map<string, boolean>;
+  connectionStatus: Map<string, ConnectionStatus>;
+  connectionMetrics: Map<string, ConnectionMetrics>;
+  
+  // 连接池状态
+  poolStatistics: PoolStatistics;
+  
+  // 当前选中的连接
+  currentConnectionId: string | null;
+  
+  // 连接操作状态
+  isConnecting: Map<string, boolean>;
+  connectionErrors: Map<string, string>;
 }
 
-interface QueryState {
-  currentQuery: string;
-  queryHistory: QueryRecord[];
-  queryResults: QueryResult[];
-  isLoading: boolean;
+// 多查询会话状态
+interface MultiQueryState {
+  // 多标签查询
+  queryTabs: Map<string, QueryTab>;
+  activeTabId: string | null;
+  
+  // 查询历史（按连接分组）
+  queryHistoryByConnection: Map<string, QueryRecord[]>;
+  
+  // 跨连接查询结果
+  crossConnectionResults: CrossConnectionResult[];
+  
+  // 批量操作状态
+  batchOperations: BatchOperation[];
 }
 
-interface AIState {
-  isProcessing: boolean;
-  conversation: AIMessage[];
-  suggestions: string[];
+// 增强AI状态
+interface EnhancedAIState {
+  // AI会话（按连接分组）
+  conversationsByConnection: Map<string, AIConversation>;
+  
+  // 全局AI建议
+  globalSuggestions: AISuggestion[];
+  
+  // 跨连接智能分析
+  crossConnectionInsights: AIInsight[];
+  
+  // AI处理状态
+  processingStates: Map<string, AIProcessingState>;
+}
+
+// 监控状态
+interface MonitoringState {
+  // 实时性能指标
+  performanceMetrics: Map<string, PerformanceMetric[]>;
+  
+  // 系统健康状态
+  systemHealth: SystemHealthStatus;
+  
+  // 告警信息
+  alerts: Alert[];
+  
+  // 日志记录
+  recentLogs: LogEntry[];
+}
+
+// 辅助类型定义
+interface ConnectionStatus {
+  connected: boolean;
+  lastChecked: Date;
+  responseTime: number;
+  error?: string;
+}
+
+interface ConnectionMetrics {
+  createdAt: Date;
+  lastUsed: Date;
+  queryCount: number;
+  errorCount: number;
+  avgResponseTime: number;
+}
+
+interface QueryTab {
+  id: string;
+  title: string;
+  connectionId: string;
+  query: string;
+  results?: QueryResult;
+  isActive: boolean;
+  isDirty: boolean;
 }
 ```
 
@@ -404,7 +591,298 @@ const JSONSchemaViewer = defineComponent({
 });
 ```
 
-## 5. 统一数据库接口设计
+## 5. 多连接管理核心功能
+
+### 5.1 连接生命周期管理
+
+#### 5.1.1 连接创建和配置
+```typescript
+// 连接创建服务
+class ConnectionManager {
+  private connections = new Map<string, DatabaseConnection>();
+  private adapters = new Map<string, DatabaseAdapter>();
+  
+  async createConnection(config: DatabaseConnectionConfig): Promise<string> {
+    // 验证连接配置
+    const errors = this.validateConfig(config);
+    if (errors.length > 0) {
+      throw new ValidationError('连接配置无效', errors);
+    }
+    
+    // 生成唯一连接ID
+    const connectionId = this.generateConnectionId(config);
+    
+    // 测试连接
+    const adapter = AdapterFactory.createAdapter(config.type);
+    await adapter.connect(config);
+    
+    // 保存连接信息
+    this.connections.set(connectionId, {
+      ...config,
+      id: connectionId,
+      metadata: {
+        ...config.metadata,
+        createdAt: new Date(),
+        status: 'connected'
+      }
+    });
+    
+    return connectionId;
+  }
+  
+  async updateConnection(id: string, updates: Partial<DatabaseConnection>): Promise<void> {
+    const connection = this.connections.get(id);
+    if (!connection) {
+      throw new NotFoundError('连接不存在');
+    }
+    
+    // 更新连接配置
+    const updatedConnection = { ...connection, ...updates };
+    
+    // 重新建立连接
+    await this.reconnect(id, updatedConnection);
+    
+    this.connections.set(id, updatedConnection);
+  }
+}
+```
+
+#### 5.1.2 智能连接监控
+```typescript
+// 连接监控服务
+class ConnectionMonitor {
+  private healthCheckInterval = 30000; // 30秒
+  private performanceWindow = 300000; // 5分钟性能窗口
+  
+  startMonitoring(): void {
+    setInterval(() => {
+      this.performHealthCheck();
+    }, this.healthCheckInterval);
+  }
+  
+  async performHealthCheck(): Promise<void> {
+    const connections = AdapterFactory.getActiveConnections();
+    
+    for (const connectionKey of connections) {
+      try {
+        const startTime = Date.now();
+        const adapter = await AdapterFactory.getAdapterByKey(connectionKey);
+        const isHealthy = await adapter.testConnection();
+        const responseTime = Date.now() - startTime;
+        
+        // 记录健康状态
+        this.recordHealthMetric(connectionKey, {
+          healthy: isHealthy,
+          responseTime,
+          timestamp: new Date()
+        });
+        
+        // 触发告警
+        if (!isHealthy || responseTime > 5000) {
+          this.triggerAlert(connectionKey, {
+            type: isHealthy ? 'slow_response' : 'connection_failed',
+            responseTime,
+            timestamp: new Date()
+          });
+        }
+      } catch (error) {
+        this.handleMonitoringError(connectionKey, error);
+      }
+    }
+  }
+}
+```
+
+### 5.2 跨连接AI语义分析
+
+#### 5.2.1 多数据源智能查询
+```typescript
+// 跨连接查询服务
+class CrossConnectionQueryService {
+  async executeSemanticQuery(
+    query: string, 
+    connectionIds: string[]
+  ): Promise<CrossConnectionResult> {
+    // AI分析查询意图
+    const intent = await this.aiService.analyzeQueryIntent(query);
+    
+    // 确定数据源分配
+    const queryPlan = await this.planMultiSourceQuery(intent, connectionIds);
+    
+    // 并行执行查询
+    const results = await Promise.all(
+      queryPlan.subQueries.map(async (subQuery) => {
+        const adapter = await AdapterFactory.getAdapter(subQuery.connection);
+        return adapter.executeQuery(subQuery.sql, subQuery.params);
+      })
+    );
+    
+    // 合并和关联结果
+    const mergedResult = await this.mergeQueryResults(results, queryPlan);
+    
+    return {
+      originalQuery: query,
+      queryPlan,
+      results: mergedResult,
+      executionTime: queryPlan.totalExecutionTime,
+      sourceConnections: connectionIds
+    };
+  }
+  
+  private async planMultiSourceQuery(
+    intent: QueryIntent, 
+    connectionIds: string[]
+  ): Promise<MultiSourceQueryPlan> {
+    // 获取各连接的模式信息
+    const schemas = await Promise.all(
+      connectionIds.map(id => this.getConnectionSchema(id))
+    );
+    
+    // AI智能分配查询到不同数据源
+    const distribution = await this.aiService.distributeQuery(intent, schemas);
+    
+    return {
+      subQueries: distribution.queries,
+      joinStrategy: distribution.joinStrategy,
+      aggregationPlan: distribution.aggregation
+    };
+  }
+}
+```
+
+### 5.3 负载均衡和故障转移
+
+#### 5.3.1 智能负载分配
+```typescript
+// 负载均衡器
+class ConnectionLoadBalancer {
+  private strategies = {
+    'round_robin': this.roundRobinStrategy,
+    'least_connections': this.leastConnectionsStrategy,
+    'performance_based': this.performanceBasedStrategy
+  };
+  
+  async selectOptimalConnection(
+    connectionType: 'postgresql' | 'mongodb',
+    queryComplexity: 'simple' | 'complex'
+  ): Promise<string> {
+    const availableConnections = AdapterFactory.getAdaptersByType(connectionType);
+    
+    if (availableConnections.length === 0) {
+      throw new NoConnectionError(`没有可用的${connectionType}连接`);
+    }
+    
+    // 根据查询复杂度选择策略
+    const strategy = queryComplexity === 'complex' 
+      ? 'performance_based' 
+      : 'round_robin';
+    
+    return this.strategies[strategy](availableConnections);
+  }
+  
+  private async performanceBasedStrategy(connections: string[]): Promise<string> {
+    const metrics = await AdapterFactory.getDetailedConnectionStatus();
+    
+    // 选择性能最好的连接
+    let bestConnection = connections[0];
+    let bestScore = 0;
+    
+    for (const connection of connections) {
+      const metric = metrics.find(m => m.key === connection);
+      if (metric) {
+        const score = this.calculatePerformanceScore(metric);
+        if (score > bestScore) {
+          bestScore = score;
+          bestConnection = connection;
+        }
+      }
+    }
+    
+    return bestConnection;
+  }
+  
+  private calculatePerformanceScore(metric: any): number {
+    // 综合考虑响应时间、错误率、负载等因素
+    const responseScore = Math.max(0, 100 - (metric.avgResponseTime / 10));
+    const errorScore = Math.max(0, 100 - (metric.errorCount / metric.queryCount * 100));
+    const loadScore = Math.max(0, 100 - (metric.queryCount / 1000 * 100));
+    
+    return (responseScore + errorScore + loadScore) / 3;
+  }
+}
+```
+
+### 5.4 多连接会话管理
+
+#### 5.4.1 会话状态同步
+```typescript
+// 会话管理器
+class MultiConnectionSessionManager {
+  private sessions = new Map<string, UserSession>();
+  
+  async createSession(userId: string): Promise<string> {
+    const sessionId = this.generateSessionId();
+    
+    const session: UserSession = {
+      id: sessionId,
+      userId,
+      connections: new Map(),
+      activeQueries: new Map(),
+      aiContext: new AIContext(),
+      createdAt: new Date(),
+      lastActivity: new Date()
+    };
+    
+    this.sessions.set(sessionId, session);
+    return sessionId;
+  }
+  
+  async addConnectionToSession(
+    sessionId: string, 
+    connectionId: string
+  ): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      throw new NotFoundError('会话不存在');
+    }
+    
+    // 获取连接适配器
+    const connection = await ConnectionManager.getConnection(connectionId);
+    const adapter = await AdapterFactory.getAdapter(connection);
+    
+    // 添加到会话
+    session.connections.set(connectionId, {
+      connection,
+      adapter,
+      joinedAt: new Date(),
+      queryCount: 0
+    });
+    
+    // 更新AI上下文
+    await this.updateAIContext(session, connectionId);
+  }
+  
+  private async updateAIContext(
+    session: UserSession, 
+    connectionId: string
+  ): Promise<void> {
+    const connection = session.connections.get(connectionId);
+    if (connection) {
+      // 获取数据库模式信息
+      const schema = await connection.adapter.getTables();
+      
+      // 更新AI上下文
+      session.aiContext.addConnectionSchema(connectionId, {
+        type: connection.connection.type,
+        tables: schema,
+        capabilities: this.getConnectionCapabilities(connection.connection.type)
+      });
+    }
+  }
+}
+```
+
+## 6. 统一数据库接口设计
 
 ### 5.1 接口抽象层
 

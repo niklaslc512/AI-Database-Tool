@@ -1,6 +1,4 @@
 import crypto from 'crypto';
-import { Database } from 'sqlite';
-import sqlite3 from 'sqlite3';
 import { 
   ApiKey,
   CreateApiKeyRequest,
@@ -10,14 +8,64 @@ import {
 } from '../types';
 import { AppError } from '../types';
 import { logger } from '../utils/logger';
+import { databaseManager } from '../config/database';
 
 export class ApiKeyService {
-  private db: Database<sqlite3.Database, sqlite3.Statement>;
+  private static instance: ApiKeyService;
   private keyPrefix: string;
 
-  constructor(db: Database<sqlite3.Database, sqlite3.Statement>) {
-    this.db = db;
+  private constructor() {
     this.keyPrefix = process.env.API_KEY_PREFIX || 'ak_';
+  }
+
+  /**
+   * 获取ApiKeyService单例实例
+   */
+  static getInstance(): ApiKeyService {
+    if (!ApiKeyService.instance) {
+      ApiKeyService.instance = new ApiKeyService();
+    }
+    return ApiKeyService.instance;
+  }
+
+  /**
+   * 获取数据库实例
+   */
+  private async getDatabase(): Promise<any> {
+    return databaseManager.getDatabase();
+  }
+
+  /**
+   * 执行查询语句，返回单个结果
+   */
+  private async executeQuery<T = any>(
+    sql: string, 
+    params?: any[]
+  ): Promise<T> {
+    const db = await this.getDatabase();
+    return db.get(sql, params) as Promise<T>;
+  }
+
+  /**
+   * 执行查询语句，返回所有结果
+   */
+  private async executeAll<T = any>(
+    sql: string, 
+    params?: any[]
+  ): Promise<T[]> {
+    const db = await this.getDatabase();
+    return db.all(sql, params) as Promise<T[]>;
+  }
+
+  /**
+   * 执行插入、更新或删除语句
+   */
+  private async executeRun(
+    sql: string, 
+    params?: any[]
+  ): Promise<any> {
+    const db = await this.getDatabase();
+    return db.run(sql, params);
   }
 
   /**
@@ -26,13 +74,13 @@ export class ApiKeyService {
   async createApiKey(userId: string, keyData: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
     try {
       // 检查用户是否存在
-      const user = await this.db.get('SELECT id FROM users WHERE id = ?', userId);
+      const user = await this.executeQuery('SELECT id FROM users WHERE id = ?', [userId]);
       if (!user) {
         throw new AppError('用户不存在', 404);
       }
 
       // 检查用户API密钥数量限制（最多10个）
-      const keyCount = await this.db.get('SELECT COUNT(*) as count FROM api_keys WHERE user_id = ? AND is_active = TRUE', userId) as any;
+      const keyCount = await this.executeQuery('SELECT COUNT(*) as count FROM api_keys WHERE user_id = ? AND is_active = TRUE', [userId]) as any;
       if (keyCount.count >= 10) {
         throw new AppError('API密钥数量已达上限（10个）', 400);
       }
@@ -43,18 +91,18 @@ export class ApiKeyService {
       const secretHash = this.hashSecret(secret);
 
       // 插入API密钥数据
-      const result = await this.db.run(`
+      const result = await this.executeRun(`
         INSERT INTO api_keys (
           user_id, name, key_id, key_secret, permissions, expires_at, is_active
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
-        userId,
+        [userId,
         keyData.name,
         keyId,
         secretHash,
         keyData.permissions ? JSON.stringify(keyData.permissions) : null,
         keyData.expiresAt ? keyData.expiresAt.toISOString() : null,
-        true
+        true]
       );
 
       const apiKey = await this.getApiKeyById(result.lastID?.toString() || '');
@@ -82,7 +130,7 @@ export class ApiKeyService {
         ORDER BY created_at DESC
       `;
       
-      const keys = await this.db.all(query, userId) as any[];
+      const keys = await this.executeAll(query, [userId]) as any[];
       return keys.map(key => this.mapDbApiKeyToApiKey(key));
     } catch (error) {
       logger.error('获取API密钥列表失败:', error);
@@ -94,7 +142,7 @@ export class ApiKeyService {
    * 根据ID获取API密钥
    */
   async getApiKeyById(id: string): Promise<ApiKey> {
-    const key = await this.db.get('SELECT * FROM api_keys WHERE id = ?', id) as any;
+    const key = await this.executeQuery('SELECT * FROM api_keys WHERE id = ?', [id]) as any;
     if (!key) {
       throw new AppError('API密钥不存在', 404);
     }
@@ -115,12 +163,12 @@ export class ApiKeyService {
       const [keyId, secret] = parts;
 
       // 查找API密钥
-      const dbKey = await this.db.get(`
+      const dbKey = await this.executeQuery(`
         SELECT ak.*, u.id as user_id, u.username, u.role, u.status
         FROM api_keys ak
         JOIN users u ON ak.user_id = u.id
         WHERE ak.key_id = ? AND ak.is_active = TRUE
-      `, keyId) as any;
+      `, [keyId]) as any;
 
       if (!dbKey) {
         return { valid: false };
@@ -143,11 +191,11 @@ export class ApiKeyService {
       }
 
       // 更新最后使用时间
-      await this.db.run(`
+      await this.executeRun(`
         UPDATE api_keys 
         SET last_used_at = CURRENT_TIMESTAMP 
         WHERE id = ?
-      `, dbKey.id);
+      `, [dbKey.id]);
 
       const apiKey = this.mapDbApiKeyToApiKey(dbKey);
       const user = {
@@ -169,7 +217,7 @@ export class ApiKeyService {
    */
   async updateApiKey(id: string, userId: string, updateData: { name?: string; permissions?: string[] }): Promise<ApiKey> {
     try {
-      const existingKey = await this.db.get('SELECT * FROM api_keys WHERE id = ? AND user_id = ?', id, userId) as any;
+      const existingKey = await this.executeQuery('SELECT * FROM api_keys WHERE id = ? AND user_id = ?', [id, userId]) as any;
       if (!existingKey) {
         throw new AppError('API密钥不存在', 404);
       }
@@ -193,7 +241,7 @@ export class ApiKeyService {
 
       values.push(id);
       const updateQuery = `UPDATE api_keys SET ${updates.join(', ')} WHERE id = ?`;
-      await this.db.run(updateQuery, ...values);
+      await this.executeRun(updateQuery, values);
 
       logger.info(`更新API密钥成功: ${id}`);
       return this.getApiKeyById(id);
@@ -208,11 +256,11 @@ export class ApiKeyService {
    */
   async deactivateApiKey(id: string, userId: string): Promise<void> {
     try {
-      const result = await this.db.run(`
+      const result = await this.executeRun(`
         UPDATE api_keys 
         SET is_active = FALSE 
         WHERE id = ? AND user_id = ?
-      `, id, userId);
+      `, [id, userId]);
 
       if (result.changes === 0) {
         throw new AppError('API密钥不存在', 404);
@@ -230,10 +278,10 @@ export class ApiKeyService {
    */
   async deleteApiKey(id: string, userId: string): Promise<void> {
     try {
-      const result = await this.db.run(`
+      const result = await this.executeRun(`
         DELETE FROM api_keys 
         WHERE id = ? AND user_id = ?
-      `, id, userId);
+      `, [id, userId]);
 
       if (result.changes === 0) {
         throw new AppError('API密钥不存在', 404);
@@ -256,7 +304,7 @@ export class ApiKeyService {
     totalUsage: number;
   }> {
     try {
-      const stats = await this.db.get(`
+      const stats = await this.executeQuery(`
         SELECT 
           COUNT(*) as total,
           SUM(CASE WHEN is_active = TRUE THEN 1 ELSE 0 END) as active,
@@ -264,7 +312,7 @@ export class ApiKeyService {
           SUM(usage_count) as totalUsage
         FROM api_keys 
         WHERE user_id = ?
-      `, userId) as any;
+      `, [userId]) as any;
 
       return {
         total: stats.total || 0,
@@ -283,7 +331,7 @@ export class ApiKeyService {
    */
   async cleanupExpiredKeys(): Promise<number> {
     try {
-      const result = await this.db.run(`
+      const result = await this.executeRun(`
         UPDATE api_keys 
         SET is_active = FALSE 
         WHERE expires_at IS NOT NULL 
@@ -355,4 +403,5 @@ export class ApiKeyService {
     
     return apiKey;
   }
+
 }

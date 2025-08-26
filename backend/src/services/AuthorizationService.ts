@@ -1,7 +1,5 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { Database } from 'sqlite';
-import sqlite3 from 'sqlite3';
 import { 
   AuthorizationToken,
   ExternalAuthRequest,
@@ -10,6 +8,7 @@ import {
 } from '../types';
 import { AppError } from '../types';
 import { BusinessLogger } from '../utils/enhancedLogger';
+import { databaseManager } from '../config/database';
 
 /**
  * 授权服务类 - 负责外部授权和令牌管理
@@ -19,14 +18,63 @@ import { BusinessLogger } from '../utils/enhancedLogger';
  * @version 1.0.0
  */
 export class AuthorizationService {
-  private db: Database<sqlite3.Database, sqlite3.Statement>;
+  private static instance: AuthorizationService;
   private jwtSecret: string;
   private logger: BusinessLogger;
 
-  constructor(db: Database<sqlite3.Database, sqlite3.Statement>) {
-    this.db = db;
+  private constructor() {
     this.jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
     this.logger = new BusinessLogger('AuthorizationService');
+  }
+
+  /**
+   * 获取AuthorizationService单例实例
+   */
+  static getInstance(): AuthorizationService {
+    if (!AuthorizationService.instance) {
+      AuthorizationService.instance = new AuthorizationService();
+    }
+    return AuthorizationService.instance;
+  }
+
+  /**
+   * 获取数据库实例
+   */
+  private async getDatabase(): Promise<any> {
+    return databaseManager.getDatabase();
+  }
+
+  /**
+   * 执行查询语句，返回单个结果
+   */
+  private async executeQuery<T = any>(
+    sql: string, 
+    params?: any[]
+  ): Promise<T> {
+    const db = await this.getDatabase();
+    return db.get(sql, params) as Promise<T>;
+  }
+
+  /**
+   * 执行查询语句，返回所有结果
+   */
+  private async executeAll<T = any>(
+    sql: string, 
+    params?: any[]
+  ): Promise<T[]> {
+    const db = await this.getDatabase();
+    return db.all(sql, params) as Promise<T[]>;
+  }
+
+  /**
+   * 执行插入、更新或删除语句
+   */
+  private async executeRun(
+    sql: string, 
+    params?: any[]
+  ): Promise<any> {
+    const db = await this.getDatabase();
+    return db.run(sql, params);
   }
 
   /**
@@ -50,16 +98,16 @@ export class AuthorizationService {
       expiresAt.setSeconds(expiresAt.getSeconds() + expiresIn);
 
       // 存储授权令牌
-      await this.db.run(`
+      await this.executeRun(`
         INSERT INTO auth_tokens (
           token, token_type, scope, client_info, expires_at
         ) VALUES (?, ?, ?, ?, ?)
       `,
-        token,
+        [token,
         provider,
         scope ? JSON.stringify(scope) : null,
         clientInfo ? JSON.stringify(clientInfo) : null,
-        expiresAt.toISOString()
+        expiresAt.toISOString()]
       );
 
       let authUrl: string | undefined;
@@ -94,10 +142,10 @@ export class AuthorizationService {
    */
   async validateAuthToken(token: string): Promise<{ valid: boolean; authToken?: AuthorizationToken }> {
     try {
-      const dbToken = await this.db.get(`
+      const dbToken = await this.executeQuery(`
         SELECT * FROM auth_tokens 
         WHERE token = ? AND is_revoked = FALSE
-      `, token) as any;
+      `, [token]) as any;
 
       if (!dbToken) {
         return { valid: false };
@@ -140,16 +188,16 @@ export class AuthorizationService {
 
       if (userId) {
         // 如果提供了用户ID，验证用户存在且状态正常
-        user = await this.db.get('SELECT * FROM users WHERE id = ? AND status = ?', userId, 'active');
+        user = await this.executeQuery('SELECT * FROM users WHERE id = ? AND status = ?', [userId, 'active']);
         if (!user) {
           throw new AppError('用户不存在或已被锁定', 401);
         }
 
         // 关联用户到授权令牌
-        await this.db.run('UPDATE auth_tokens SET user_id = ? WHERE token = ?', userId, token);
+        await this.executeRun('UPDATE auth_tokens SET user_id = ? WHERE token = ?', [userId, token]);
       } else if (validation.authToken.userId) {
         // 如果令牌已关联用户
-        user = await this.db.get('SELECT * FROM users WHERE id = ? AND status = ?', validation.authToken.userId, 'active');
+        user = await this.executeQuery('SELECT * FROM users WHERE id = ? AND status = ?', [validation.authToken.userId, 'active']);
         if (!user) {
           throw new AppError('关联的用户不存在或已被锁定', 401);
         }
@@ -173,11 +221,11 @@ export class AuthorizationService {
       jwtExpiresAt.setTime(jwtExpiresAt.getTime() + 86400 * 1000); // 24小时
 
       // 更新用户登录信息
-      await this.db.run(`
+      await this.executeRun(`
         UPDATE users 
         SET last_login_at = CURRENT_TIMESTAMP, login_count = login_count + 1 
         WHERE id = ?
-      `, user.id);
+      `, [user.id]);
 
       // 记录登录日志
       await this.logExternalLogin(user.id, user.username, validation.authToken.tokenType, true);
@@ -214,11 +262,11 @@ export class AuthorizationService {
    */
   async revokeAuthToken(token: string): Promise<void> {
     try {
-      const result = await this.db.run(`
+      const result = await this.executeRun(`
         UPDATE auth_tokens 
         SET is_revoked = TRUE 
         WHERE token = ?
-      `, token);
+      `, [token]);
 
       if ((result.changes || 0) > 0) {
         this.logger.info('✅ 撤销授权令牌成功', { tokenId: token.substring(0, 8) + '...' });
@@ -235,11 +283,11 @@ export class AuthorizationService {
    */
   async getUserAuthTokens(userId: string): Promise<AuthorizationToken[]> {
     try {
-      const tokens = await this.db.all(`
+      const tokens = await this.executeAll(`
         SELECT * FROM auth_tokens 
         WHERE user_id = ? 
         ORDER BY created_at DESC
-      `, userId) as any[];
+      `, [userId]) as any[];
 
       return tokens.map(token => this.mapDbTokenToAuthToken(token));
     } catch (error) {
@@ -253,7 +301,7 @@ export class AuthorizationService {
    */
   async cleanupExpiredTokens(): Promise<number> {
     try {
-      const result = await this.db.run(`
+      const result = await this.executeRun(`
         DELETE FROM auth_tokens 
         WHERE expires_at < datetime('now') 
         OR is_revoked = TRUE
@@ -278,12 +326,12 @@ export class AuthorizationService {
     byType: Record<string, number>;
   }> {
     try {
-      const totalResult = await this.db.get('SELECT COUNT(*) as count FROM auth_tokens') as any;
-      const activeResult = await this.db.get('SELECT COUNT(*) as count FROM auth_tokens WHERE expires_at > datetime("now") AND is_revoked = FALSE') as any;
-      const expiredResult = await this.db.get('SELECT COUNT(*) as count FROM auth_tokens WHERE expires_at <= datetime("now")') as any;
-      const revokedResult = await this.db.get('SELECT COUNT(*) as count FROM auth_tokens WHERE is_revoked = TRUE') as any;
+      const totalResult = await this.executeQuery('SELECT COUNT(*) as count FROM auth_tokens') as any;
+      const activeResult = await this.executeQuery('SELECT COUNT(*) as count FROM auth_tokens WHERE expires_at > datetime("now") AND is_revoked = FALSE') as any;
+      const expiredResult = await this.executeQuery('SELECT COUNT(*) as count FROM auth_tokens WHERE expires_at <= datetime("now")') as any;
+      const revokedResult = await this.executeQuery('SELECT COUNT(*) as count FROM auth_tokens WHERE is_revoked = TRUE') as any;
       
-      const byTypeResults = await this.db.all(`
+      const byTypeResults = await this.executeAll(`
         SELECT token_type, COUNT(*) as count 
         FROM auth_tokens 
         GROUP BY token_type
@@ -330,11 +378,11 @@ export class AuthorizationService {
    */
   private async logExternalLogin(userId: string, username: string, method: string, success: boolean): Promise<void> {
     try {
-      await this.db.run(`
+      await this.executeRun(`
         INSERT INTO login_logs (
           user_id, username, login_method, success
         ) VALUES (?, ?, ?, ?)
-      `, userId, username, method, success);
+      `, [userId, username, method, success]);
     } catch (error) {
       this.logger.error('❌ 记录外部登录日志失败', error as Error, { userId, username, method });
     }

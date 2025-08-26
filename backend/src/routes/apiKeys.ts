@@ -1,15 +1,13 @@
 import { Router } from 'express';
-import { Database } from 'sqlite';
-import sqlite3 from 'sqlite3';
 import { ApiKeyService } from '../services/ApiKeyService';
 import { createAuthMiddleware } from '../middleware/auth';
 import { AppError } from '../types';
 import { logger } from '../utils/logger';
 
-export function createApiKeyRoutes(db: Database<sqlite3.Database, sqlite3.Statement>): Router {
+export function createApiKeyRoutes(): Router {
   const router = Router();
-  const apiKeyService = new ApiKeyService(db);
-  const authMiddleware = createAuthMiddleware(db);
+  const apiKeyService = ApiKeyService.getInstance();
+  const authMiddleware = createAuthMiddleware();
 
   // 获取当前用户的API密钥列表
   router.get('/', authMiddleware.authenticate, async (req, res) => {
