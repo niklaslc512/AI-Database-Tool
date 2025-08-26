@@ -12,7 +12,7 @@ export function createAuthRoutes(): Router {
   // 创建外部授权令牌
   router.post('/external/create', 
     authMiddleware.authenticate,
-    authMiddleware.requireRole(['admin', 'user']),
+    authMiddleware.requireRole(['admin', 'developer']),
     async (req, res) => {
       try {
         const { provider = 'temporary', scope, clientInfo, expiresIn = 3600 } = req.body;
@@ -120,7 +120,7 @@ export function createAuthRoutes(): Router {
   // 创建临时访问令牌
   router.post('/temporary',
     authMiddleware.authenticate,
-    authMiddleware.requireRole(['admin', 'user']),
+    authMiddleware.requireRole(['admin', 'developer']),
     async (req, res) => {
       try {
         const { scope = ['read'], expiresIn = 3600 } = req.body;

@@ -4,34 +4,37 @@
     :class="{ 'navbar-scrolled': isScrolled }"
   >
     <div class="navbar-container">
-      <!-- 品牌Logo -->
-      <div class="navbar-brand">
-        <div class="logo-icon">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                  d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-          </svg>
+      <!-- 左侧：品牌Logo和导航菜单 -->
+      <div class="navbar-left">
+        <!-- 品牌Logo -->
+        <div class="navbar-brand">
+          <div class="logo-icon">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+            </svg>
+          </div>
+          <span class="logo-text">AI数据库管理</span>
         </div>
-        <span class="logo-text">AI数据库管理</span>
+        
+        <!-- 导航菜单 - 桌面端 -->
+        <div class="navbar-menu">
+          <a href="#features" class="nav-link" @click="scrollToSection('features')">功能特性</a>
+          <a href="#demo" class="nav-link" @click="scrollToSection('demo')">产品演示</a>
+          <a href="#advantages" class="nav-link" @click="scrollToSection('advantages')">技术优势</a>
+        </div>
       </div>
       
-      <!-- 导航菜单 - 桌面端 -->
-      <div class="navbar-menu">
-        <a href="#features" class="nav-link" @click="scrollToSection('features')">功能特性</a>
-        <a href="#demo" class="nav-link" @click="scrollToSection('demo')">产品演示</a>
-        <a href="#advantages" class="nav-link" @click="scrollToSection('advantages')">技术优势</a>
-      </div>
-      
-      <!-- 操作区域 -->
+      <!-- 右侧：操作区域 -->
       <div class="navbar-actions">
         <ThemeToggle />
-        <BaseButton variant="ghost" size="md" class="hidden md:inline-flex">
+        <BaseButton variant="outline" size="md" class="hidden md:inline-flex">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
           查看文档
         </BaseButton>
-        <BaseButton @click="handleGetStarted">
+        <BaseButton variant="primary" @click="handleGetStarted">
           开始使用
         </BaseButton>
         
@@ -65,10 +68,10 @@
             技术优势
           </a>
           <div class="mobile-menu-divider"></div>
-          <BaseButton variant="ghost" size="md" block class="mb-3">
+          <BaseButton variant="outline" size="md" block class="mb-3">
             查看文档
           </BaseButton>
-          <BaseButton block @click="handleGetStarted">
+          <BaseButton variant="primary" block @click="handleGetStarted">
             开始使用
           </BaseButton>
         </div>
@@ -142,20 +145,32 @@ onUnmounted(() => {
 
 .navbar {
   @apply fixed top-0 w-full z-50;
-  @apply bg-white/80 dark:bg-gray-900/80;
-  @apply backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800/50;
+  @apply bg-base-100/80;
+  @apply backdrop-blur-md border-b border-primary/20;
   transition: all 0.3s ease;
 }
 
 .navbar-scrolled {
-  @apply bg-white/95 dark:bg-gray-900/95;
-  @apply border-gray-200 dark:border-gray-800;
-  @apply shadow-soft;
+  @apply bg-base-100/95;
+  @apply border-primary/30;
+  @apply shadow-lg;
 }
 
 .navbar-container {
-  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  @apply w-full max-w-none px-4 sm:px-6 lg:px-8;
   @apply flex items-center justify-between h-16;
+  max-width: calc(100vw - 2rem);
+}
+
+@media (min-width: 1024px) {
+  .navbar-container {
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+}
+
+.navbar-left {
+  @apply flex items-center space-x-8;
 }
 
 .navbar-brand {
@@ -163,13 +178,13 @@ onUnmounted(() => {
 }
 
 .logo-icon {
-  @apply w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600;
+  @apply w-10 h-10 bg-gradient-to-br from-green-600 to-green-600;
   @apply rounded-xl flex items-center justify-center text-white;
   @apply shadow-md;
 }
 
 .logo-text {
-  @apply text-xl font-bold text-gray-900 dark:text-white;
+  @apply text-xl font-bold text-base-content;
   @apply hidden sm:block;
 }
 
@@ -179,8 +194,8 @@ onUnmounted(() => {
 
 .nav-link {
   @apply px-4 py-2 rounded-lg text-sm font-medium;
-  @apply text-gray-600 hover:text-primary-500 dark:text-gray-300 dark:hover:text-primary-400;
-  @apply hover:bg-gray-100 dark:hover:bg-gray-800;
+  @apply text-base-content hover:text-primary;
+  @apply hover:bg-primary/10;
   @apply transition-all duration-200;
 }
 
@@ -190,15 +205,15 @@ onUnmounted(() => {
 
 .mobile-menu-button {
   @apply p-2 rounded-lg;
-  @apply text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white;
-  @apply hover:bg-gray-100 dark:hover:bg-gray-800;
+  @apply text-base-content hover:text-primary;
+  @apply hover:bg-primary/10;
   @apply transition-colors duration-200;
 }
 
 .mobile-menu {
   @apply md:hidden absolute top-full left-0 right-0;
-  @apply bg-white dark:bg-gray-900;
-  @apply border-b border-gray-200 dark:border-gray-800;
+  @apply bg-base-100;
+  @apply border-b border-primary/20;
   @apply shadow-lg;
 }
 
@@ -208,13 +223,13 @@ onUnmounted(() => {
 
 .mobile-nav-link {
   @apply block px-4 py-3 rounded-lg text-base font-medium;
-  @apply text-gray-600 hover:text-primary-500 dark:text-gray-300 dark:hover:text-primary-400;
-  @apply hover:bg-gray-100 dark:hover:bg-gray-800;
+  @apply text-base-content hover:text-primary;
+  @apply hover:bg-primary/10;
   @apply transition-all duration-200;
 }
 
 .mobile-menu-divider {
-  @apply my-4 border-t border-gray-200 dark:border-gray-700;
+  @apply my-4 border-t border-primary/20;
 }
 
 /* 移动端菜单动画 */

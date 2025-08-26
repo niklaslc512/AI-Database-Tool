@@ -422,14 +422,14 @@ export class AuthorizationService {
   }
 
   /**
-   * 映射数据库用户对象到User类型
+   * 🗂️ 映射数据库用户对象到User类型
    */
   private mapDbUserToUser(dbUser: any): User {
     return {
       id: dbUser.id?.toString(),
       username: dbUser.username,
       email: dbUser.email,
-      role: dbUser.role,
+      roles: dbUser.roles || 'guest',  // 🎭 使用多角色字段
       status: dbUser.status,
       displayName: dbUser.display_name,
       avatarUrl: dbUser.avatar_url,

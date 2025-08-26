@@ -24,14 +24,8 @@ export interface DatabaseConnection {
 /**
  * 支持的数据库类型
  */
-export type DatabaseType = 
-  | 'mysql' 
-  | 'postgresql' 
-  | 'sqlite' 
-  | 'mongodb' 
-  | 'redis'
-  | 'oracle'
-  | 'sqlserver';
+export type DatabaseType = 'postgresql' | 'mongodb' 
+
 
 /**
  * 查询结果
@@ -124,7 +118,7 @@ export interface AIQueryResponse {
 }
 
 /**
- * 用户信息
+ * 👤 用户信息
  */
 export interface User {
   id: string;
@@ -132,7 +126,7 @@ export interface User {
   email: string;
   passwordHash?: string;
   salt?: string;
-  role: UserRole;
+  roles: string;  // 🎭 多角色，逗号分隔存储，如: "admin,developer"
   status: UserStatus;
   displayName?: string;
   avatarUrl?: string;
@@ -144,9 +138,31 @@ export interface User {
 }
 
 /**
- * 用户角色
+ * 🎭 用户角色枚举
+ * - admin: 系统管理员，可以管理用户和系统设置
+ * - developer: 开发者，可以管理API密钥和数据库表
+ * - guest: 访客，只能进行数据查询
  */
-export type UserRole = 'admin' | 'user' | 'readonly' | 'guest';
+export type UserRole = 'admin' | 'developer' | 'guest';
+
+/**
+ * 🔐 角色权限映射
+ */
+export const ROLE_PERMISSIONS = {
+  admin: ['user_management', 'system_settings', 'api_key_management', 'database_management', 'data_query'],
+  developer: ['api_key_management', 'database_management', 'data_query'],
+  guest: ['data_query']
+} as const;
+
+/**
+ * 📋 权限类型
+ */
+export type Permission = 
+  | 'user_management'      // 用户管理
+  | 'system_settings'      // 系统设置
+  | 'api_key_management'   // API密钥管理
+  | 'database_management'  // 数据库管理
+  | 'data_query';          // 数据查询
 
 /**
  * 用户状态
@@ -168,21 +184,21 @@ export interface UserSettings {
 }
 
 /**
- * 权限
+ * 🔐 权限资源接口（已废弃，使用Permission类型）
  */
-export interface Permission {
+export interface PermissionResource {
   resource: string;
   actions: string[];
 }
 
 /**
- * 用户创建请求
+ * 👥 用户创建请求
  */
 export interface CreateUserRequest {
   username: string;
   email: string;
   password: string;
-  role?: UserRole;
+  roles?: UserRole[];  // 🎭 角色数组
   displayName?: string;
   settings?: UserSettings;
 }
@@ -216,12 +232,12 @@ export interface LoginResponse {
 }
 
 /**
- * JWT负载
+ * 🔑 JWT负载
  */
 export interface JWTPayload {
   userId: string;
   username: string;
-  role: UserRole;
+  roles: UserRole[];  // 🎭 用户角色数组
   iat: number;
   exp: number;
 }
@@ -344,6 +360,19 @@ export interface PaginationParams {
 }
 
 /**
+ * 🛠️ 角色工具函数类型
+ */
+export interface RoleUtils {
+  parseRoles: (rolesString: string) => UserRole[];
+  stringifyRoles: (roles: UserRole[]) => string;
+  hasRole: (userRoles: string, targetRole: UserRole) => boolean;
+  hasAnyRole: (userRoles: string, targetRoles: UserRole[]) => boolean;
+  hasPermission: (userRoles: string, permission: Permission) => boolean;
+  addRole: (userRoles: string, newRole: UserRole) => string;
+  removeRole: (userRoles: string, roleToRemove: UserRole) => string;
+}
+
+/**
  * 分页结果
  */
 export interface PaginatedResult<T> {
@@ -398,6 +427,70 @@ export interface AIConfig {
   maxTokens: number;
   temperature: number;
   baseURL?: string;
+}
+
+/**
+ * 🔧 系统配置类型
+ */
+export type ConfigType = 'string' | 'number' | 'boolean' | 'json';
+
+/**
+ * 🔧 配置分类
+ */
+export type ConfigCategory = 'general' | 'database' | 'ai' | 'security' | 'system';
+
+/**
+ * 🔧 系统配置接口
+ */
+export interface Config {
+  id: string;
+  key: string;
+  value: string;
+  type: ConfigType;
+  description?: string;
+  category: ConfigCategory;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * 🔧 创建配置请求
+ */
+export interface CreateConfigRequest {
+  key: string;
+  value: string;
+  type?: ConfigType;
+  description?: string;
+  category?: ConfigCategory;
+}
+
+/**
+ * 🔧 更新配置请求
+ */
+export interface UpdateConfigRequest {
+  value?: string;
+  description?: string;
+  category?: ConfigCategory;
+}
+
+/**
+ * 🔧 配置变更事件
+ */
+export interface ConfigChangeEvent {
+  key: string;
+  oldValue: string;
+  newValue: string;
+  type: ConfigType;
+  timestamp: Date;
+  userId?: string | undefined;         // 操作用户ID
+}
+
+/**
+ * 🔧 配置初始化选项
+ */
+export interface ConfigInitOptions {
+  overrideEnv?: boolean;   // 是否覆盖环境变量
+  categories?: ConfigCategory[]; // 只初始化指定分类的配置
 }
 
 /**

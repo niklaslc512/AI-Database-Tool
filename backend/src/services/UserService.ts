@@ -15,6 +15,7 @@ import {
 } from '../types';
 import { AppError } from '../types';
 import { BusinessLogger } from '../utils/enhancedLogger';
+import { RoleUtils } from '../utils/roleUtils';
 import { databaseManager } from '../config/database';
 
 /**
@@ -145,17 +146,24 @@ export class UserService {
       const salt = await bcrypt.genSalt(this.saltRounds);
       const passwordHash = await bcrypt.hash(userData.password, salt);
 
+      // 🎭 处理用户角色
+      const userRoles = userData.roles && userData.roles.length > 0 
+        ? RoleUtils.stringifyRoles(userData.roles)
+        : 'guest';  // 默认角色为guest
+      
+      this.logger.debug('🎭 设置用户角色', { roles: userRoles });
+
       // 插入用户数据
       const result = await this.executeRun(`
         INSERT INTO users (
-          username, email, password_hash, salt, role, display_name, settings
+          username, email, password_hash, salt, roles, display_name, settings
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `, [
         userData.username,
         userData.email,
         passwordHash,
         salt,
-        userData.role || 'user',
+        userRoles,
         userData.displayName || userData.username,
         JSON.stringify(userData.settings || {
           theme: 'auto',
@@ -233,15 +241,18 @@ export class UserService {
       // 记录登录成功
       await this.logLoginAttempt(loginData.username, true, null, clientInfo, user.id);
 
-      // 生成JWT令牌
+      // 🔑 生成JWT令牌（包含多角色信息）
+      const userRoles = RoleUtils.parseRoles(user.roles);
       const payload = {
         userId: user.id,
         username: user.username,
-        role: user.role
+        roles: userRoles  // 🎭 包含角色数组
       };
       
       const secret = this.jwtSecret as string;
       const token = jwt.sign(payload, secret, { expiresIn: 86400 }); // 24小时
+      
+      this.logger.debug('🔑 JWT令牌生成成功', { userId: user.id, roles: userRoles });
 
       const expiresAt = new Date();
       expiresAt.setTime(expiresAt.getTime() + this.parseJwtExpiration(this.jwtExpiresIn));
@@ -371,8 +382,9 @@ export class UserService {
       const values: any[] = [];
 
       if (role) {
-        conditions.push('role = ?');
-        values.push(role);
+        // 🎭 支持多角色查询，使用LIKE匹配
+        conditions.push('(roles = ? OR roles LIKE ? OR roles LIKE ? OR roles LIKE ?)');
+        values.push(role, `${role},%`, `%,${role}`, `%,${role},%`);
       }
 
       if (status) {
@@ -506,7 +518,7 @@ export class UserService {
   }
 
   /**
-   * 映射数据库用户对象到User类型
+   * 🗂️ 映射数据库用户对象到User类型
    */
   private mapDbUserToUser(dbUser: any): User {
     const user: User = {
@@ -515,7 +527,7 @@ export class UserService {
       email: dbUser.email,
       passwordHash: dbUser.password_hash,
       salt: dbUser.salt,
-      role: dbUser.role,
+      roles: dbUser.roles || 'guest',  // 🎭 使用多角色字段
       status: dbUser.status,
       displayName: dbUser.display_name,
       avatarUrl: dbUser.avatar_url,
@@ -531,5 +543,83 @@ export class UserService {
     }
     
     return user;
+  }
+
+  /**
+   * 🎭 添加角色管理方法
+   */
+  async addUserRole(userId: string, role: UserRole): Promise<User> {
+    try {
+      const user = await this.getUserById(userId);
+      const newRoles = RoleUtils.addRole(user.roles, role);
+      
+      await this.executeRun(`
+        UPDATE users SET roles = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+      `, [newRoles, userId]);
+      
+      this.logger.info('✅ 添加用户角色成功', { userId, role, newRoles });
+      this.logger.userAction(userId, '添加角色', { role, newRoles });
+      
+      return this.getUserById(userId);
+    } catch (error) {
+      this.logger.error('❌ 添加用户角色失败', error as Error, { userId, role });
+      throw error;
+    }
+  }
+
+  /**
+   * 🎭 移除用户角色
+   */
+  async removeUserRole(userId: string, role: UserRole): Promise<User> {
+    try {
+      const user = await this.getUserById(userId);
+      const newRoles = RoleUtils.removeRole(user.roles, role);
+      
+      await this.executeRun(`
+        UPDATE users SET roles = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+      `, [newRoles, userId]);
+      
+      this.logger.info('✅ 移除用户角色成功', { userId, role, newRoles });
+      this.logger.userAction(userId, '移除角色', { role, newRoles });
+      
+      return this.getUserById(userId);
+    } catch (error) {
+      this.logger.error('❌ 移除用户角色失败', error as Error, { userId, role });
+      throw error;
+    }
+  }
+
+  /**
+   * 🎭 设置用户角色
+   */
+  async setUserRoles(userId: string, roles: UserRole[]): Promise<User> {
+    try {
+      const rolesString = RoleUtils.stringifyRoles(roles);
+      
+      await this.executeRun(`
+        UPDATE users SET roles = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+      `, [rolesString, userId]);
+      
+      this.logger.info('✅ 设置用户角色成功', { userId, roles: rolesString });
+      this.logger.userAction(userId, '设置角色', { roles: rolesString });
+      
+      return this.getUserById(userId);
+    } catch (error) {
+      this.logger.error('❌ 设置用户角色失败', error as Error, { userId, roles });
+      throw error;
+    }
+  }
+
+  /**
+   * 🔍 检查用户权限
+   */
+  async checkUserPermission(userId: string, permission: string): Promise<boolean> {
+    try {
+      const user = await this.getUserById(userId);
+      return RoleUtils.hasPermission(user.roles, permission as any);
+    } catch (error) {
+      this.logger.error('❌ 检查用户权限失败', error as Error, { userId, permission });
+      return false;
+    }
   }
 }

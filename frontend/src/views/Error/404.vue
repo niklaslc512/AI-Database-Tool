@@ -40,7 +40,7 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { QuestionFilled } from '@element-plus/icons-vue'
+import { QuestionFilled } from '@/utils/iconMapping'
 
 const router = useRouter()
 

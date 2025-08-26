@@ -23,5 +23,5 @@
 </template>
 
 <script setup lang="ts">
-import { Connection } from '@element-plus/icons-vue'
+import { Connection } from '@/utils/iconMapping'
 </script>

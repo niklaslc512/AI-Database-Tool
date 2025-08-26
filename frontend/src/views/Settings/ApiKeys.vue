@@ -230,7 +230,7 @@
   </div>
 </template>
 
-<script setup lang=\"ts\">
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { 
   PlusIcon,
@@ -239,12 +239,12 @@ import {
   ChartBarIcon,
   ClipboardIcon,
   CalendarIcon,
-  ClockIcon,
   PencilIcon,
   TrashIcon,
   XMarkIcon,
   ExclamationTriangleIcon
 } from '@heroicons/vue/24/outline'
+import { Timer as ClockIcon } from '@/utils/iconMapping'
 import BaseButton from '@/components/UI/BaseButton.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { ApiKey, CreateApiKeyRequest } from '@/types'
@@ -414,7 +414,7 @@ onMounted(() => {
 }
 
 .spinner {
-  @apply w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mb-4;
+  @apply w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mb-4;
 }
 
 .empty-state {
@@ -537,7 +537,7 @@ onMounted(() => {
 .form-input {
   @apply w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg;
   @apply bg-white dark:bg-gray-700 text-gray-900 dark:text-white;
-  @apply focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+  @apply focus:ring-2 focus:ring-green-500 focus:border-transparent;
 }
 
 .dialog-actions {

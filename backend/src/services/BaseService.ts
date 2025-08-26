@@ -18,9 +18,9 @@ export abstract class BaseService {
   }
   
   /**
-   * 获取服务单例实例
+   * 获取服务单例实例（基类方法，子类可以重写）
    */
-  static getInstance<T extends BaseService>(this: new() => T): T {
+  static getBaseInstance<T extends BaseService>(this: new() => T): T {
     const className = this.name;
     if (!BaseService.instances.has(className)) {
       BaseService.instances.set(className, new this());

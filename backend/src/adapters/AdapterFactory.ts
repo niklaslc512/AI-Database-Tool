@@ -178,13 +178,8 @@ export class AdapterFactory {
    */
   static getDefaultPort(type: DatabaseType): number {
     const defaultPorts: Record<DatabaseType, number> = {
-      'mysql': 3306,
       'postgresql': 5432,
-      'sqlite': 0, // SQLite不使用端口
-      'mongodb': 27017,
-      'redis': 6379,
-      'oracle': 1521,
-      'sqlserver': 1433
+      'mongodb': 27017
     };
     
     return defaultPorts[type] || 0;

@@ -52,7 +52,7 @@
           >
             <div class="user-info">
               <div class="user-name">{{ user.displayName || user.username }}</div>
-              <div class="user-role">{{ getRoleName(user.role) }}</div>
+              <div class="user-role">{{ getRoleName(user.roles) }}</div>
             </div>
           </button>
         </div>
@@ -192,14 +192,22 @@ const loginWithToken = async (userId?: string) => {
   }
 }
 
-const getRoleName = (role: string): string => {
+const getRoleName = (roles: string): string => {
   const roleNames: Record<string, string> = {
     admin: '系统管理员',
-    user: '普通用户',
-    readonly: '只读用户',
+    developer: '开发者',
     guest: '访客用户'
   }
-  return roleNames[role] || role
+  
+  if (!roles) return '访客用户'
+  
+  const roleList = roles.split(',').map(role => role.trim())
+  const displayNames = roleList.map(role => roleNames[role] || role)
+  
+  // 如果有多个角色，显示最高权限的角色
+  if (roleList.includes('admin')) return '系统管理员'
+  if (roleList.includes('developer')) return '开发者'
+  return '访客用户'
 }
 
 const goBack = () => {
@@ -246,7 +254,7 @@ onMounted(() => {
 }
 
 .logo-icon {
-  @apply w-16 h-16 bg-primary-500 rounded-2xl flex items-center justify-center;
+  @apply w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center;
   @apply text-white font-bold text-2xl mb-4;
   box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
 }
@@ -275,7 +283,7 @@ onMounted(() => {
   @apply w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg;
   @apply bg-white dark:bg-gray-700 text-gray-900 dark:text-white;
   @apply placeholder-gray-500 dark:placeholder-gray-400;
-  @apply focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+  @apply focus:ring-2 focus:ring-green-500 focus:border-transparent;
   @apply transition-all duration-200 resize-none;
 }
 
@@ -292,7 +300,7 @@ onMounted(() => {
 }
 
 .spinner {
-  @apply w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4;
+  @apply w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4;
 }
 
 .success-icon {
@@ -373,7 +381,7 @@ onMounted(() => {
 
 .help-section li::before {
   content: '•';
-  @apply text-primary-500 mr-2 mt-1;
+  @apply text-green-500 mr-2 mt-1;
 }
 
 .help-links {
@@ -381,7 +389,7 @@ onMounted(() => {
 }
 
 .help-link {
-  @apply text-primary-600 hover:text-primary-500 dark:text-primary-400;
+  @apply text-green-600 hover:text-green-500 dark:text-green-400;
   @apply transition-colors underline;
 }
 </style>

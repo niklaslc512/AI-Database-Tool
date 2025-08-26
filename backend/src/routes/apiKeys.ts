@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { ApiKeyService } from '../services/ApiKeyService';
 import { createAuthMiddleware } from '../middleware/auth';
 import { AppError } from '../types';
+import { RoleUtils } from '../utils/roleUtils';
 import { logger } from '../utils/logger';
 
 export function createApiKeyRoutes(): Router {
@@ -66,8 +67,8 @@ export function createApiKeyRoutes(): Router {
       
       const apiKey = await apiKeyService.getApiKeyById(keyId);
 
-      // 检查权限：只能查看自己的API密钥
-      if (apiKey.userId !== req.user!.id && req.user!.role !== 'admin') {
+      // 🔍 检查权限：只能查看自己的API密钥或管理员
+      if (apiKey.userId !== req.user!.id && !RoleUtils.hasRole(req.user!.roles, 'admin')) {
         throw new AppError('权限不足', 403, true, req.url);
       }
 

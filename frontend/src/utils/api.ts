@@ -1,6 +1,17 @@
 import axios, { type AxiosResponse, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
-import type { LoginRequest, LoginResponse, User, ErrorResponse, MessageResponse } from '@/types'
-import { ElMessage } from 'element-plus'
+import type { 
+  LoginRequest, 
+  LoginResponse, 
+  User, 
+  ErrorResponse, 
+  MessageResponse,
+  SystemConfig,
+  CreateConfigRequest,
+  UpdateConfigRequest,
+  ConfigStats,
+  ConfigCategoryInfo
+} from '@/types'
+// 🎨 使用原生浏览器API替代Element Plus消息组件
 import { ApiLogger } from './logger'
 
 // 扩展axios配置类型
@@ -91,29 +102,29 @@ apiClient.interceptors.response.use(
           break
           
         case 403:
-          ElMessage.error('没有权限执行此操作')
+          console.error('没有权限执行此操作')
           break
           
         case 404:
-          ElMessage.error('请求的资源不存在')
+          console.error('请求的资源不存在')
           break
           
         case 429:
-          ElMessage.error('请求过于频繁，请稍后再试')
+          console.error('请求过于频繁，请稍后再试')
           break
           
         case 500:
-          ElMessage.error('服务器内部错误，请稍后再试')
+          console.error('服务器内部错误，请稍后再试')
           break
           
         default:
           const message = (data as any)?.message || '请求失败'
-          ElMessage.error(message)
+          console.error(message)
       }
     } else if (error.code === 'ECONNABORTED') {
-      ElMessage.error('请求超时，请检查网络连接')
+      console.error('请求超时，请检查网络连接')
     } else {
-      ElMessage.error('网络错误，请检查网络连接')
+      console.error('网络错误，请检查网络连接')
     }
     
     return Promise.reject(error)
@@ -249,6 +260,37 @@ export const aiApi = {
   // 表结构建议
   suggestTableStructure: (description: string): Promise<any> =>
     api.post('/ai/suggest-table', { description })
+}
+
+// 系统配置相关API
+export const configApi = {
+  // 获取所有配置
+  getConfigs: (category?: string, search?: string): Promise<SystemConfig[]> => {
+    const params: any = {}
+    if (category) params.category = category
+    if (search) params.search = search
+    return api.get('/configs', params)
+  },
+
+  // 获取单个配置
+  getConfig: (key: string): Promise<SystemConfig> =>
+    api.get(`/configs/${key}`),
+
+  // 创建配置
+  createConfig: (data: CreateConfigRequest): Promise<SystemConfig> =>
+    api.post('/configs', data),
+
+  // 更新配置
+  updateConfig: (key: string, data: UpdateConfigRequest): Promise<SystemConfig> =>
+    api.put(`/configs/${key}`, data),
+
+  // 删除配置
+  deleteConfig: (key: string): Promise<MessageResponse> =>
+    api.delete(`/configs/${key}`),
+
+  // 重新加载配置
+  reloadConfigs: (): Promise<MessageResponse> =>
+    api.post('/configs/reload')
 }
 
 export default api

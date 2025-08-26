@@ -2,17 +2,18 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { ApiKeyService } from '../services/ApiKeyService';
 import { UserService } from '../services/UserService';
-import { AppError } from '../types';
+import { AppError, UserRole, Permission } from '../types';
+import { RoleUtils } from '../utils/roleUtils';
 import { logger } from '../utils/logger';
 
-// 扩展Express Request类型
+// 🔧 扩展Express Request类型
 declare global {
   namespace Express {
     interface Request {
       user?: {
         id: string;
         username: string;
-        role: string;
+        roles: string;  // 🎭 多角色字符串
         authMethod: 'jwt' | 'api_key';
       };
       apiKey?: {
@@ -59,7 +60,7 @@ export class AuthMiddleware {
       req.user = {
         id: decoded.userId,
         username: decoded.username,
-        role: decoded.role,
+        roles: user.roles,  // 🎭 使用数据库中的多角色字段
         authMethod: 'jwt'
       };
 
@@ -102,7 +103,7 @@ export class AuthMiddleware {
       req.user = {
         id: validation.user.id,
         username: validation.user.username,
-        role: validation.user.role,
+        roles: validation.user.roles,  // 🎭 使用数据库中的多角色字段
         authMethod: 'api_key'
       };
 
@@ -145,23 +146,29 @@ export class AuthMiddleware {
   };
 
   /**
-   * 角色权限检查中间件
+   * 🎭 角色权限检查中间件（支持多角色）
    */
-  requireRole = (allowedRoles: string[]) => {
+  requireRole = (allowedRoles: UserRole[]) => {
     return (req: Request, res: Response, next: NextFunction): void => {
       if (!req.user) {
         res.status(401).json({
-          success: false,
-          message: '用户未认证'
+          message: '用户未认证',
+          timestamp: new Date().toISOString(),
+          path: req.path
         });
         return;
       }
 
-      if (!allowedRoles.includes(req.user.role)) {
-        logger.warn(`用户 ${req.user.username} 尝试访问需要角色 [${allowedRoles.join(', ')}] 的资源，当前角色: ${req.user.role}`);
+      // 🔍 检查用户是否拥有任意一个允许的角色
+      const hasRequiredRole = RoleUtils.hasAnyRole(req.user.roles, allowedRoles);
+      
+      if (!hasRequiredRole) {
+        const userRoles = RoleUtils.parseRoles(req.user.roles);
+        logger.warn(`🚫 用户 ${req.user.username} 尝试访问需要角色 [${allowedRoles.join(', ')}] 的资源，当前角色: [${userRoles.join(', ')}]`);
         res.status(403).json({
-          success: false,
-          message: '权限不足'
+          message: '权限不足',
+          timestamp: new Date().toISOString(),
+          path: req.path
         });
         return;
       }
@@ -171,38 +178,55 @@ export class AuthMiddleware {
   };
 
   /**
-   * 权限检查中间件
+   * 🔐 权限检查中间件（支持多角色权限）
    */
-  requirePermission = (requiredPermissions: string[]) => {
+  requirePermission = (requiredPermissions: Permission[]) => {
     return (req: Request, res: Response, next: NextFunction) => {
       if (!req.user) {
         return res.status(401).json({
-          success: false,
-          message: '用户未认证'
+          message: '用户未认证',
+          timestamp: new Date().toISOString(),
+          path: req.path
         });
       }
 
-      // 管理员拥有所有权限
-      if (req.user.role === 'admin') {
+      // 🔍 检查用户角色权限
+      const hasRolePermission = requiredPermissions.some(permission => 
+        RoleUtils.hasPermission(req.user!.roles, permission)
+      );
+      
+      if (hasRolePermission) {
         return next();
       }
 
-      // 检查API Key权限
+      // 🔑 检查API Key权限
       if (req.apiKey && req.apiKey.permissions) {
-        const hasPermission = requiredPermissions.some(permission => 
+        const hasApiKeyPermission = requiredPermissions.some(permission => 
           req.apiKey!.permissions!.includes(permission)
         );
         
-        if (!hasPermission) {
-          logger.warn(`API Key ${req.apiKey.name} 缺少权限: [${requiredPermissions.join(', ')}]`);
-          return res.status(403).json({
-            success: false,
-            message: 'API密钥权限不足'
-          });
+        if (hasApiKeyPermission) {
+          return next();
         }
+        
+        logger.warn(`🔑 API Key ${req.apiKey.name} 缺少权限: [${requiredPermissions.join(', ')}]`);
+        return res.status(403).json({
+          message: 'API密钥权限不足',
+          timestamp: new Date().toISOString(),
+          path: req.path
+        });
       }
 
-      next();
+      // 📋 记录权限不足日志
+      const userRoles = RoleUtils.parseRoles(req.user.roles);
+      const userPermissions = RoleUtils.getUserPermissions(req.user.roles);
+      logger.warn(`🚫 用户 ${req.user.username} 权限不足，需要权限: [${requiredPermissions.join(', ')}]，当前权限: [${userPermissions.join(', ')}]`);
+      
+      return res.status(403).json({
+        message: '权限不足',
+        timestamp: new Date().toISOString(),
+        path: req.path
+      });
     };
   };
 
@@ -231,30 +255,33 @@ export class AuthMiddleware {
   };
 
   /**
-   * 用户自己或管理员权限检查
+   * 👤 用户自己或管理员权限检查
    */
   requireOwnerOrAdmin = (userIdParam: string = 'userId') => {
     return (req: Request, res: Response, next: NextFunction) => {
       if (!req.user) {
         return res.status(401).json({
-          success: false,
-          message: '用户未认证'
+          message: '用户未认证',
+          timestamp: new Date().toISOString(),
+          path: req.path
         });
       }
 
       const targetUserId = req.params[userIdParam] || req.body.userId;
       
-      // 管理员可以访问任何用户的资源
-      if (req.user.role === 'admin') {
+      // 🔍 管理员可以访问任何用户的资源
+      if (RoleUtils.hasRole(req.user.roles, 'admin')) {
         return next();
       }
 
-      // 用户只能访问自己的资源
+      // 👤 用户只能访问自己的资源
       if (req.user.id !== targetUserId) {
-        logger.warn(`用户 ${req.user.username} 尝试访问用户 ${targetUserId} 的资源`);
+        const userRoles = RoleUtils.parseRoles(req.user.roles);
+        logger.warn(`🚫 用户 ${req.user.username} (角色: [${userRoles.join(', ')}]) 尝试访问用户 ${targetUserId} 的资源`);
         return res.status(403).json({
-          success: false,
-          message: '只能访问自己的资源'
+          message: '只能访问自己的资源',
+          timestamp: new Date().toISOString(),
+          path: req.path
         });
       }
 

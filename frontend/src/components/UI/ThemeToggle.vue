@@ -43,12 +43,12 @@ const getThemeTitle = () => {
 
 <style scoped>
 @reference "@/styles/main.css";
+
 .theme-toggle {
-  @apply p-2 rounded-lg bg-gray-100 hover:bg-gray-200;
-  @apply dark:bg-gray-800 dark:hover:bg-gray-700;
-  @apply text-gray-600 dark:text-gray-300;
+  @apply p-2 rounded-lg bg-base-200 hover:bg-base-300;
+  @apply text-base-content;
   @apply transition-all duration-200;
-  @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
 }
 
 .icon-fade-enter-active,

@@ -285,11 +285,11 @@ onMounted(() => {
 
 .login-container {
   @apply min-h-screen relative overflow-hidden;
-  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #a7f3d0 100%);
 }
 
 .dark .login-container {
-  background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+  background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
 }
 
 .login-background {
@@ -321,7 +321,7 @@ onMounted(() => {
 }
 
 .logo-icon {
-  @apply w-16 h-16 bg-primary-500 rounded-2xl flex items-center justify-center;
+  @apply w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center;
   box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
@@ -362,8 +362,8 @@ onMounted(() => {
 }
 
 .feature-icon {
-  @apply w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center;
-  @apply text-primary-600 dark:text-primary-400;
+  @apply w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center;
+  @apply text-green-600 dark:text-green-400;
 }
 
 .form-section {
@@ -418,7 +418,7 @@ onMounted(() => {
   @apply w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600;
   @apply rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white;
   @apply placeholder-gray-500 dark:placeholder-gray-400;
-  @apply focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+  @apply focus:ring-2 focus:ring-green-500 focus:border-transparent;
   @apply transition-all duration-200;
 }
 
@@ -458,7 +458,7 @@ onMounted(() => {
 }
 
 .checkbox-input:checked + .checkbox-custom {
-  @apply bg-primary-500 border-primary-500;
+  @apply bg-green-500 border-green-500;
 }
 
 .checkbox-input:checked + .checkbox-custom::after {
@@ -472,12 +472,12 @@ onMounted(() => {
 }
 
 .forgot-password {
-  @apply text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400;
+  @apply text-sm text-green-600 hover:text-green-500 dark:text-green-400;
   @apply transition-colors;
 }
 
 .login-button {
-  @apply w-full bg-primary-500 hover:bg-primary-600 text-white font-medium py-3 px-4;
+  @apply w-full bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4;
   @apply rounded-lg transition-all duration-200 transform hover:scale-105;
   @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
   @apply flex items-center justify-center space-x-2;
@@ -501,7 +501,7 @@ onMounted(() => {
 }
 
 .register-btn {
-  @apply text-primary-600 hover:text-primary-500 dark:text-primary-400 font-medium;
+  @apply text-green-600 hover:text-green-500 dark:text-green-400 font-medium;
   @apply transition-colors;
 }
 

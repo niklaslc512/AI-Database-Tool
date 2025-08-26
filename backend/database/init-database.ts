@@ -97,23 +97,31 @@ async function initializeUsers(db: Database<sqlite3.Database, sqlite3.Statement>
       // 默认用户设置
       const defaultSettings = getDefaultUserSettings();
 
-      // 插入用户数据
+      // 🎭 插入用户数据（使用多角色字段）
+      console.log(`  🔍 准备插入用户数据:`, {
+        username: userData.username,
+        email: userData.email,
+        roles: userData.roles,
+        displayName: userData.displayName,
+        status: userData.status
+      });
+      
       await db.run(`
         INSERT INTO users (
-          username, email, password_hash, salt, role, display_name, status, settings
+          username, email, password_hash, salt, roles, display_name, status, settings
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `,
+      `, [
         userData.username,
         userData.email,
         passwordHash,
         salt,
-        userData.role,
+        userData.roles,  // 🎭 使用多角色字段
         userData.displayName,
         userData.status,
         JSON.stringify(defaultSettings)
-      );
+      ]);
 
-      console.log(`  ✓ 创建用户: ${userData.username} (${userData.role})`);
+      console.log(`  ✓ 创建用户: ${userData.username} (${userData.roles})`);
     } catch (error) {
       console.error(`  ❌ 创建用户 ${userData.username} 失败:`, error);
       throw error;
@@ -121,13 +129,13 @@ async function initializeUsers(db: Database<sqlite3.Database, sqlite3.Statement>
   }
 
   console.log('\n📋 默认账号信息:');
-  console.log('┌─────────────┬──────────────┬────────────┐');
-  console.log('│ 用户名      │ 密码         │ 角色       │');
-  console.log('├─────────────┼──────────────┼────────────┤');
+  console.log('┌─────────────┬──────────────┬──────────────────┬────────────┐');
+  console.log('│ 用户名      │ 密码         │ 角色             │ 显示名称   │');
+  console.log('├─────────────┼──────────────┼──────────────────┼────────────┤');
   defaultUsers.forEach(user => {
-    console.log(`│ ${user.username.padEnd(11)} │ ${user.password.padEnd(12)} │ ${user.displayName.padEnd(10)} │`);
+    console.log(`│ ${user.username.padEnd(11)} │ ${user.password.padEnd(12)} │ ${user.roles.padEnd(16)} │ ${user.displayName.padEnd(10)} │`);
   });
-  console.log('└─────────────┴──────────────┴────────────┘');
+  console.log('└─────────────┴──────────────┴──────────────────┴────────────┘');
   
   console.log('\n⚠️  安全提醒: 请及时修改默认密码！');
 }

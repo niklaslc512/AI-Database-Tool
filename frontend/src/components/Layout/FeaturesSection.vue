@@ -149,7 +149,7 @@ const features = [
   {
     id: 1,
     title: '自然语言查询',
-    description: '用自然语言描述您的需求，AI自动生成精确的SQL查询语句，让数据查询变得简单直观。',
+    description: '用自然语言描述您的需求，AI自动生成精确的SQL查询语句，让数据查询变得直观。',
     icon: ChatIcon,
     iconClass: 'bg-blue-500',
     featured: true,
@@ -161,14 +161,14 @@ const features = [
   },
   {
     id: 2,
-    title: '多数据库支持',
-    description: '完美支持MySQL、PostgreSQL、SQLite、MongoDB等主流数据库，一个平台管理所有数据源。',
+    title: '意图判断识别',
+    description: '智能理解用户查询意图，精准识别数据操作需求，自动匹配最佳查询策略和执行方案。',
     icon: DatabaseIcon,
     iconClass: 'bg-green-500',
     highlights: [
-      'MySQL & PostgreSQL',
-      'MongoDB & SQLite',
-      '统一管理界面'
+      '自然语言理解',
+      '意图精准识别',
+      '智能策略匹配'
     ]
   },
   {
@@ -225,9 +225,10 @@ const features = [
 
 <style scoped>
 @reference "@/styles/main.css";
+
 .features-section {
   @apply py-20 lg:py-32;
-  @apply bg-white dark:bg-gray-900;
+  @apply bg-base-100;
 }
 
 .features-container {
@@ -240,9 +241,9 @@ const features = [
 
 .section-badge {
   @apply inline-flex items-center space-x-2 px-4 py-2 mb-6;
-  @apply bg-primary-50 dark:bg-primary-900/30 rounded-full;
-  @apply text-primary-600 dark:text-primary-400 text-sm font-medium;
-  @apply border border-primary-200 dark:border-primary-800;
+  @apply bg-primary/10 rounded-full;
+  @apply text-primary text-sm font-medium;
+  @apply border border-primary/20;
 }
 
 .badge-icon {
@@ -251,12 +252,12 @@ const features = [
 
 .section-title {
   @apply text-3xl sm:text-4xl lg:text-5xl font-bold;
-  @apply text-gray-900 dark:text-white mb-6;
+  @apply text-base-content mb-6;
   @apply tracking-tight leading-tight;
 }
 
 .section-subtitle {
-  @apply text-lg sm:text-xl text-gray-600 dark:text-gray-300;
+  @apply text-lg sm:text-xl text-base-content/70;
   @apply leading-relaxed;
 }
 
@@ -266,9 +267,9 @@ const features = [
 
 .feature-card {
   @apply relative p-8 rounded-2xl;
-  @apply bg-white dark:bg-gray-800;
-  @apply border border-gray-200 dark:border-gray-700;
-  @apply shadow-soft hover:shadow-medium;
+  @apply bg-base-200;
+  @apply border border-base-300;
+  @apply shadow-lg hover:shadow-xl;
   @apply transition-all duration-300 ease-out;
   @apply transform hover:-translate-y-2;
   animation: fadeInUp 0.6s ease-out;
@@ -277,13 +278,12 @@ const features = [
 }
 
 .feature-card.featured {
-  @apply border-primary-200 dark:border-primary-800;
-  @apply bg-gradient-to-br from-primary-50/50 to-white;
-  @apply dark:from-primary-900/20 dark:to-gray-800;
+  @apply border-green-300;
+  @apply bg-gradient-to-br from-green-50 to-gray-100;
 }
 
 .feature-card:hover {
-  @apply border-primary-300 dark:border-primary-600;
+  @apply border-primary/50;
 }
 
 .feature-icon-wrapper {
@@ -305,12 +305,12 @@ const features = [
 }
 
 .feature-title {
-  @apply text-xl font-bold text-gray-900 dark:text-white;
+  @apply text-xl font-bold text-base-content;
   @apply mb-3;
 }
 
 .feature-description {
-  @apply text-gray-600 dark:text-gray-300 leading-relaxed;
+  @apply text-base-content/70 leading-relaxed;
   @apply mb-4;
 }
 
@@ -320,11 +320,11 @@ const features = [
 
 .highlight-item {
   @apply flex items-center space-x-2 text-sm;
-  @apply text-gray-500 dark:text-gray-400;
+  @apply text-base-content/60;
 }
 
 .highlight-icon {
-  @apply w-4 h-4 text-primary-500 dark:text-primary-400;
+  @apply w-4 h-4 text-primary;
 }
 
 @keyframes fadeInUp {

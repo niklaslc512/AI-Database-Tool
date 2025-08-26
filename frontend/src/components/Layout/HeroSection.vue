@@ -35,8 +35,8 @@
           <!-- 行动按钮 -->
           <div class="hero-actions">
             <BaseButton 
+              variant="primary"
               size="lg" 
-              class="hero-cta-primary"
               @click="handleGetStarted"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -45,7 +45,7 @@
               立即体验
             </BaseButton>
             <BaseButton 
-              variant="ghost" 
+              variant="outline" 
               size="lg"
               @click="handleViewDemo"
             >
@@ -150,7 +150,7 @@ const router = useRouter()
 // 功能亮点
 const features = [
   '自然语言查询',
-  '多数据库支持',
+  '意图判断识别',
   '智能优化建议'
 ]
 
@@ -171,8 +171,8 @@ const handleViewDemo = () => {
 @reference "@/styles/main.css";
 .hero-section {
   @apply relative min-h-screen flex items-center;
-  @apply bg-gradient-to-br from-gray-50 via-white to-gray-100;
-  @apply dark:from-gray-900 dark:via-gray-900 dark:to-gray-800;
+  @apply bg-gradient-to-br from-white via-green-50 to-white;
+  @apply dark:from-black dark:via-green-950 dark:to-black;
   @apply pt-16 overflow-hidden;
 }
 
@@ -191,9 +191,9 @@ const handleViewDemo = () => {
 
 .hero-badge {
   @apply inline-flex items-center space-x-2 px-4 py-2;
-  @apply bg-primary-50 dark:bg-primary-900/30 rounded-full;
-  @apply text-primary-600 dark:text-primary-400 text-sm font-medium;
-  @apply border border-primary-200 dark:border-primary-800;
+  @apply bg-green-50 dark:bg-green-900/30 rounded-full;
+  @apply text-green-600 dark:text-green-400 text-sm font-medium;
+  @apply border border-green-200 dark:border-green-800;
 }
 
 .badge-icon {
@@ -202,17 +202,17 @@ const handleViewDemo = () => {
 
 .hero-title {
   @apply text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold;
-  @apply text-gray-900 dark:text-white leading-tight;
+  @apply text-black dark:text-white leading-tight;
   @apply tracking-tight;
 }
 
 .text-gradient {
-  @apply bg-gradient-to-r from-primary-500 via-primary-600 to-emerald-600;
+  @apply bg-gradient-to-r from-green-500 via-green-600 to-green-700;
   @apply bg-clip-text text-transparent;
 }
 
 .hero-subtitle {
-  @apply text-lg sm:text-xl lg:text-2xl text-gray-600 dark:text-gray-300;
+  @apply text-lg sm:text-xl lg:text-2xl text-black dark:text-white;
   @apply leading-relaxed max-w-2xl;
 }
 
@@ -221,22 +221,16 @@ const handleViewDemo = () => {
 }
 
 .feature-item {
-  @apply flex items-center space-x-2 text-gray-700 dark:text-gray-300;
+  @apply flex items-center space-x-2 text-black dark:text-white;
 }
 
 .feature-icon {
-  @apply w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30;
-  @apply flex items-center justify-center text-primary-600 dark:text-primary-400;
+  @apply w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30;
+  @apply flex items-center justify-center text-green-600 dark:text-green-400;
 }
 
 .hero-actions {
   @apply flex flex-col sm:flex-row gap-4;
-}
-
-.hero-cta-primary {
-  @apply shadow-lg hover:shadow-xl;
-  @apply bg-gradient-to-r from-primary-500 to-primary-600;
-  @apply hover:from-primary-600 hover:to-primary-700;
 }
 
 .hero-visual {
@@ -248,14 +242,14 @@ const handleViewDemo = () => {
 }
 
 .mock-window {
-  @apply bg-gray-900 rounded-xl shadow-2xl overflow-hidden;
-  @apply border border-gray-700;
+  @apply bg-black rounded-xl shadow-2xl overflow-hidden;
+  @apply border border-green-500;
   @apply transform rotate-2 hover:rotate-1 transition-transform duration-500;
 }
 
 .window-header {
   @apply flex items-center justify-between px-4 py-3;
-  @apply bg-gray-800 border-b border-gray-700;
+  @apply bg-green-900 border-b border-green-500;
 }
 
 .window-controls {
@@ -279,7 +273,7 @@ const handleViewDemo = () => {
 }
 
 .window-title {
-  @apply text-gray-300 text-sm font-medium;
+  @apply text-white text-sm font-medium;
 }
 
 .window-content {
@@ -304,11 +298,11 @@ const handleViewDemo = () => {
 
 .ai-response {
   @apply flex items-start space-x-3 mt-4 p-3;
-  @apply bg-primary-900/20 rounded-lg border border-primary-800/30;
+  @apply bg-green-900/20 rounded-lg border border-green-800/30;
 }
 
 .ai-avatar {
-  @apply w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center;
+  @apply w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center;
   @apply text-white;
 }
 
@@ -329,8 +323,8 @@ const handleViewDemo = () => {
 }
 
 .floating-card {
-  @apply absolute bg-white dark:bg-gray-800 rounded-lg shadow-lg;
-  @apply p-3 border border-gray-200 dark:border-gray-700;
+  @apply absolute bg-white dark:bg-black rounded-lg shadow-lg;
+  @apply p-3 border border-green-200 dark:border-green-800;
   @apply flex items-center space-x-2;
   animation: float 6s ease-in-out infinite;
   animation-delay: var(--delay);
@@ -353,7 +347,7 @@ const handleViewDemo = () => {
 }
 
 .card-text {
-  @apply text-sm font-medium text-gray-700 dark:text-gray-300;
+  @apply text-sm font-medium text-black dark:text-white;
 }
 
 .hero-decoration {
@@ -370,8 +364,8 @@ const handleViewDemo = () => {
 
 .decoration-gradient {
   @apply absolute top-0 right-0 w-1/2 h-1/2;
-  @apply bg-gradient-to-bl from-primary-200/20 to-transparent;
-  @apply dark:from-primary-900/20;
+  @apply bg-gradient-to-bl from-green-200/20 to-transparent;
+  @apply dark:from-green-900/20;
 }
 
 @keyframes float {

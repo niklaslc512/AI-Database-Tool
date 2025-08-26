@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { PERMISSIONS } from '@/types'
 
 // 布局组件
 const Layout = () => import('@/components/Layout/MainLayout.vue')
@@ -9,10 +11,17 @@ const Home = () => import('@/views/Home/index.vue')
 const Dashboard = () => import('@/views/Dashboard/index.vue')
 const Connections = () => import('@/views/Connections/index.vue')
 const QueryWorkspace = () => import('@/views/Query/index.vue')
-const AIAssistant = () => import('@/views/AI/index.vue')
 const Settings = () => import('@/views/Settings/index.vue')
 const Login = () => import('@/views/Auth/Login.vue')
 const Register = () => import('@/views/Auth/Register.vue')
+
+// 🔐 Admin专用页面
+const UserManagement = () => import('@/views/Admin/UserManagement.vue')
+const SystemSettings = () => import('@/views/Admin/SystemSettings.vue')
+
+// 👨‍💻 Developer专用页面
+const DatabaseManagement = () => import('@/views/Developer/DatabaseManagement.vue')
+const ApiKeyManagement = () => import('@/views/Developer/ApiKeyManagement.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -59,7 +68,9 @@ const routes: RouteRecordRaw[] = [
         component: Dashboard,
         meta: {
           title: '仪表板',
-          icon: 'Dashboard'
+          icon: 'Dashboard',
+          requiresPermission: PERMISSIONS.DASHBOARD_VIEW,
+          roles: ['admin', 'developer', 'guest']
         }
       },
       {
@@ -68,7 +79,9 @@ const routes: RouteRecordRaw[] = [
         component: Connections,
         meta: {
           title: '数据库连接',
-          icon: 'Connection'
+          icon: 'Connection',
+          requiresPermission: PERMISSIONS.DATABASE_VIEW,
+          roles: ['developer']
         }
       },
       {
@@ -77,16 +90,55 @@ const routes: RouteRecordRaw[] = [
         component: QueryWorkspace,
         meta: {
           title: '查询工作台',
-          icon: 'Search'
+          icon: 'Search',
+          requiresPermission: PERMISSIONS.QUERY_WORKSPACE,
+          roles: ['developer', 'guest']
+        }
+      },
+      // 🔐 Admin专用路由
+      {
+        path: 'users',
+        name: 'UserManagement',
+        component: UserManagement,
+        meta: {
+          title: '用户管理',
+          icon: 'User',
+          requiresPermission: PERMISSIONS.USER_MANAGEMENT,
+          roles: ['admin']
         }
       },
       {
-        path: 'ai-assistant',
-        name: 'AIAssistant',
-        component: AIAssistant,
+        path: 'system',
+        name: 'SystemSettings',
+        component: SystemSettings,
         meta: {
-          title: 'AI助手',
-          icon: 'ChatLineRound'
+          title: '系统设置',
+          icon: 'Setting',
+          requiresPermission: PERMISSIONS.SYSTEM_SETTINGS,
+          roles: ['admin']
+        }
+      },
+      // 👨‍💻 Developer专用路由
+      {
+        path: 'database',
+        name: 'DatabaseManagement',
+        component: DatabaseManagement,
+        meta: {
+          title: '数据库表管理',
+          icon: 'Database',
+          requiresPermission: PERMISSIONS.DATABASE_MANAGEMENT,
+          roles: ['developer']
+        }
+      },
+      {
+        path: 'apikeys',
+        name: 'ApiKeyManagement',
+        component: ApiKeyManagement,
+        meta: {
+          title: 'API密钥管理',
+          icon: 'Key',
+          requiresPermission: PERMISSIONS.APIKEY_MANAGEMENT,
+          roles: ['developer']
         }
       },
       {
@@ -94,8 +146,22 @@ const routes: RouteRecordRaw[] = [
         name: 'Settings',
         component: Settings,
         meta: {
-          title: '设置',
-          icon: 'Setting'
+          title: '个人设置',
+          icon: 'User',
+          requiresPermission: PERMISSIONS.DASHBOARD_VIEW,
+          roles: ['admin', 'developer', 'guest']
+        }
+      },
+      // 🧪 权限测试页面（仅开发环境）
+      {
+        path: 'permission-test',
+        name: 'PermissionTest',
+        component: () => import('@/views/Test/PermissionTest.vue'),
+        meta: {
+          title: '权限测试',
+          icon: 'Shield',
+          requiresPermission: PERMISSIONS.DASHBOARD_VIEW,
+          roles: ['admin', 'developer']
         }
       }
     ]
@@ -122,7 +188,7 @@ const router = createRouter({
   }
 })
 
-// 路由守卫
+// 🛡️ 路由守卫
 router.beforeEach((to, from, next) => {
   // 设置页面标题
   if (to.meta?.title) {
@@ -136,12 +202,41 @@ router.beforeEach((to, from, next) => {
   if (requiresAuth && !token) {
     // 需要认证但没有token，跳转到登录页
     next('/login')
-  } else if (!requiresAuth && token && (to.path === '/login' || to.path === '/register')) {
+    return
+  }
+
+  if (!requiresAuth && token && (to.path === '/login' || to.path === '/register')) {
     // 已登录用户访问登录/注册页，跳转到仪表板
     next('/app/dashboard')
-  } else {
-    next()
+    return
   }
+
+  // 🔐 权限检查
+  if (requiresAuth && token) {
+    const authStore = useAuthStore()
+    
+    // 检查角色权限
+    if (to.meta?.roles && Array.isArray(to.meta.roles)) {
+      const hasRequiredRole = authStore.checkUserRoles(to.meta.roles as any[])
+      if (!hasRequiredRole) {
+        console.warn(`🚫 用户角色不足，无法访问页面: ${to.path}`)
+        next('/app/dashboard') // 重定向到仪表板
+        return
+      }
+    }
+    
+    // 检查具体权限
+    if (to.meta?.requiresPermission) {
+      const hasPermission = authStore.checkUserPermission(to.meta.requiresPermission as string)
+      if (!hasPermission) {
+        console.warn(`🚫 用户权限不足，无法访问页面: ${to.path}`)
+        next('/app/dashboard') // 重定向到仪表板
+        return
+      }
+    }
+  }
+
+  next()
 })
 
 export default router

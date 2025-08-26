@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { UserService } from '../services/UserService';
 import { createAuthMiddleware } from '../middleware/auth';
 import { AppError, UserRole, UserStatus } from '../types';
+import { RoleUtils } from '../utils/roleUtils';
 import { logger } from '../utils/logger';
 
 export function createUserRoutes(): Router {
@@ -119,23 +120,33 @@ export function createUserRoutes(): Router {
     }
   );
 
-  // 创建用户（仅管理员）
+  // 🎭 创建用户（仅管理员）
   router.post('/',
     authMiddleware.authenticate,
     authMiddleware.requireRole(['admin']),
     async (req, res) => {
       try {
-        const { username, email, password, role, displayName, settings } = req.body;
+        const { username, email, password, roles, displayName, settings } = req.body;
 
         if (!username || !email || !password) {
           throw new AppError('用户名、邮箱和密码不能为空', 400, true, req.url);
+        }
+
+        // 🔍 验证角色格式
+        let userRoles: UserRole[] = ['guest']; // 默认角色
+        if (roles) {
+          if (Array.isArray(roles)) {
+            userRoles = roles.filter(role => ['admin', 'developer', 'guest'].includes(role));
+          } else if (typeof roles === 'string') {
+            userRoles = RoleUtils.parseRoles(roles);
+          }
         }
 
         const user = await userService.createUser({
           username,
           email,
           password,
-          role,
+          roles: userRoles,
           displayName,
           settings
         });
@@ -215,6 +226,147 @@ export function createUserRoutes(): Router {
         res.json({ message: '删除用户成功' });
       } catch (error: any) {
         throw new AppError(error.message || '删除用户失败', 500, true, req.url);
+      }
+    }
+  );
+
+  // 🎭 添加用户角色（仅管理员）
+  router.post('/:userId/roles',
+    authMiddleware.authenticate,
+    authMiddleware.requireRole(['admin']),
+    async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const { role } = req.body;
+        
+        if (!userId || !role) {
+          throw new AppError('用户ID和角色不能为空', 400, true, req.url);
+        }
+        
+        if (!['admin', 'developer', 'guest'].includes(role)) {
+          throw new AppError('无效的角色类型', 400, true, req.url);
+        }
+        
+        const user = await userService.addUserRole(userId, role as UserRole);
+        res.json(user);
+      } catch (error: any) {
+        throw new AppError(error.message || '添加用户角色失败', 500, true, req.url);
+      }
+    }
+  );
+
+  // 🎭 移除用户角色（仅管理员）
+  router.delete('/:userId/roles/:role',
+    authMiddleware.authenticate,
+    authMiddleware.requireRole(['admin']),
+    async (req, res) => {
+      try {
+        const { userId, role } = req.params;
+        
+        if (!userId || !role) {
+          throw new AppError('用户ID和角色不能为空', 400, true, req.url);
+        }
+        
+        if (!['admin', 'developer', 'guest'].includes(role)) {
+          throw new AppError('无效的角色类型', 400, true, req.url);
+        }
+        
+        const user = await userService.removeUserRole(userId, role as UserRole);
+        res.json(user);
+      } catch (error: any) {
+        throw new AppError(error.message || '移除用户角色失败', 500, true, req.url);
+      }
+    }
+  );
+
+  // 🎭 设置用户角色（仅管理员）
+  router.put('/:userId/roles',
+    authMiddleware.authenticate,
+    authMiddleware.requireRole(['admin']),
+    async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const { roles } = req.body;
+        
+        if (!userId || !roles) {
+          throw new AppError('用户ID和角色列表不能为空', 400, true, req.url);
+        }
+        
+        let userRoles: UserRole[];
+        if (Array.isArray(roles)) {
+          userRoles = roles.filter(role => ['admin', 'developer', 'guest'].includes(role));
+        } else if (typeof roles === 'string') {
+          userRoles = RoleUtils.parseRoles(roles);
+        } else {
+          throw new AppError('角色格式无效', 400, true, req.url);
+        }
+        
+        if (userRoles.length === 0) {
+          throw new AppError('至少需要一个有效角色', 400, true, req.url);
+        }
+        
+        const user = await userService.setUserRoles(userId, userRoles);
+        res.json(user);
+      } catch (error: any) {
+        throw new AppError(error.message || '设置用户角色失败', 500, true, req.url);
+      }
+    }
+  );
+
+  // 🔍 获取用户角色信息（管理员或用户自己）
+  router.get('/:userId/roles',
+    authMiddleware.authenticate,
+    authMiddleware.requireOwnerOrAdmin('userId'),
+    async (req, res) => {
+      try {
+        const { userId } = req.params;
+        
+        if (!userId) {
+          throw new AppError('用户ID不能为空', 400, true, req.url);
+        }
+        
+        const user = await userService.getUserById(userId);
+        const roleStats = RoleUtils.getRoleStats(user.roles);
+        
+        res.json({
+          userId: user.id,
+          username: user.username,
+          roles: roleStats.roles,
+          roleCount: roleStats.roleCount,
+          permissions: roleStats.permissions,
+          permissionCount: roleStats.permissionCount,
+          displayNames: roleStats.displayNames,
+          isAdmin: roleStats.isAdmin,
+          isDeveloper: roleStats.isDeveloper,
+          isGuest: roleStats.isGuest
+        });
+      } catch (error: any) {
+        throw new AppError(error.message || '获取用户角色信息失败', 500, true, req.url);
+      }
+    }
+  );
+
+  // 🔐 检查用户权限（管理员或用户自己）
+  router.get('/:userId/permissions/:permission',
+    authMiddleware.authenticate,
+    authMiddleware.requireOwnerOrAdmin('userId'),
+    async (req, res) => {
+      try {
+        const { userId, permission } = req.params;
+        
+        if (!userId || !permission) {
+          throw new AppError('用户ID和权限不能为空', 400, true, req.url);
+        }
+        
+        const hasPermission = await userService.checkUserPermission(userId, permission);
+        
+        res.json({
+          userId,
+          permission,
+          hasPermission
+        });
+      } catch (error: any) {
+        throw new AppError(error.message || '检查用户权限失败', 500, true, req.url);
       }
     }
   );

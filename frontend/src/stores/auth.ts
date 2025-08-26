@@ -9,8 +9,10 @@ import type {
   ApiKey,
   CreateApiKeyRequest,
   AuthorizationToken,
-  ExternalAuthRequest
+  ExternalAuthRequest,
+  UserRole
 } from '@/types'
+import { PERMISSIONS, DEFAULT_ROLE_PERMISSIONS } from '@/types'
 import { api } from '@/utils/api'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -23,13 +25,54 @@ export const useAuthStore = defineStore('auth', () => {
   const apiKeys = ref<ApiKey[]>([])
   const authTokens = ref<AuthorizationToken[]>([])
 
+  // 🔍 角色工具函数
+  const parseRoles = (roleString: string): UserRole[] => {
+    if (!roleString) return ['guest']
+    return roleString.split(',').map(role => role.trim() as UserRole).filter(role => 
+      ['admin', 'developer', 'guest'].includes(role)
+    )
+  }
+
+  const hasRole = (userRoles: UserRole[], requiredRole: UserRole): boolean => {
+    return userRoles.includes(requiredRole)
+  }
+
+  const hasAnyRole = (userRoles: UserRole[], requiredRoles: UserRole[]): boolean => {
+    return requiredRoles.some(role => userRoles.includes(role))
+  }
+
+  const hasPermission = (userRoles: UserRole[], permission: string): boolean => {
+    const allPermissions = getRolePermissions(userRoles)
+    return allPermissions.includes(permission)
+  }
+
+  const getRolePermissions = (roles: UserRole[]): string[] => {
+    const permissions = new Set<string>()
+    roles.forEach(role => {
+      if (DEFAULT_ROLE_PERMISSIONS[role]) {
+        DEFAULT_ROLE_PERMISSIONS[role].forEach(permission => permissions.add(permission))
+      }
+    })
+    return Array.from(permissions)
+  }
+
   // 计算属性
-  const userRole = computed(() => user.value?.role || 'guest')
+  const userRoleString = computed(() => user.value?.roles || 'guest')
+  const userRoles = computed(() => parseRoles(userRoleString.value))
   const userStatus = computed(() => user.value?.status || 'inactive')
-  const isAdmin = computed(() => userRole.value === 'admin')
+  const isAdmin = computed(() => hasRole(userRoles.value, 'admin'))
+  const isDeveloper = computed(() => hasRole(userRoles.value, 'developer'))
+  const isGuest = computed(() => hasRole(userRoles.value, 'guest'))
   const isActive = computed(() => userStatus.value === 'active')
-  const canManageUsers = computed(() => isAdmin.value)
   const displayName = computed(() => user.value?.displayName || user.value?.username || '')
+  
+  // 🛡️ 权限检查计算属性
+  const canManageUsers = computed(() => hasPermission(userRoles.value, PERMISSIONS.USER_MANAGEMENT))
+  const canManageSystem = computed(() => hasPermission(userRoles.value, PERMISSIONS.SYSTEM_SETTINGS))
+  const canManageDatabase = computed(() => hasPermission(userRoles.value, PERMISSIONS.DATABASE_MANAGEMENT))
+  const canManageApiKeys = computed(() => hasPermission(userRoles.value, PERMISSIONS.APIKEY_MANAGEMENT))
+  const canAccessQueryWorkspace = computed(() => hasPermission(userRoles.value, PERMISSIONS.QUERY_WORKSPACE))
+  const canViewDashboard = computed(() => hasPermission(userRoles.value, PERMISSIONS.DASHBOARD_VIEW))
 
   // 认证相关方法
   const login = async (credentials: LoginRequest): Promise<LoginResponse> => {
@@ -264,24 +307,20 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const hasRole = (role: string | string[]): boolean => {
+  // 🔐 权限检查方法
+  const checkUserRole = (requiredRole: UserRole): boolean => {
     if (!user.value) return false
-    
-    const roles = Array.isArray(role) ? role : [role]
-    return roles.includes(userRole.value)
+    return hasRole(userRoles.value, requiredRole)
   }
 
-  const checkPermission = (resource: string, action: string): boolean => {
+  const checkUserRoles = (requiredRoles: UserRole[]): boolean => {
     if (!user.value) return false
-    
-    // 管理员拥有所有权限
-    if (user.value.role === 'admin') return true
-    
-    // 基于角色的简单权限检查
-    if (user.value.role === 'readonly' && action !== 'read') return false
-    if (user.value.role === 'guest' && !['read', 'list'].includes(action)) return false
-    
-    return true
+    return hasAnyRole(userRoles.value, requiredRoles)
+  }
+
+  const checkUserPermission = (permission: string): boolean => {
+    if (!user.value) return false
+    return hasPermission(userRoles.value, permission)
   }
 
   // 初始化认证状态
@@ -298,12 +337,22 @@ export const useAuthStore = defineStore('auth', () => {
     authTokens,
     
     // 计算属性
-    userRole,
+    userRoleString,
+    userRoles,
     userStatus,
     isAdmin,
+    isDeveloper,
+    isGuest,
     isActive,
-    canManageUsers,
     displayName,
+    
+    // 🛡️ 权限计算属性
+    canManageUsers,
+    canManageSystem,
+    canManageDatabase,
+    canManageApiKeys,
+    canAccessQueryWorkspace,
+    canViewDashboard,
     
     // 认证方法
     login,
@@ -324,8 +373,16 @@ export const useAuthStore = defineStore('auth', () => {
     loginWithExternalToken,
     loadAuthTokens,
     
-    // 权限检查
+    // 🔍 角色工具函数
+    parseRoles,
     hasRole,
-    checkPermission
+    hasAnyRole,
+    hasPermission,
+    getRolePermissions,
+    
+    // 🔐 权限检查方法
+    checkUserRole,
+    checkUserRoles,
+    checkUserPermission
   }
 })

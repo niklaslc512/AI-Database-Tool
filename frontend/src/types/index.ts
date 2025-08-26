@@ -162,7 +162,7 @@ export interface User {
   id: string;
   username: string;
   email: string;
-  role: UserRole;
+  roles: string; // 支持多角色，格式如 'admin,developer,guest'
   status: UserStatus;
   displayName?: string;
   avatarUrl?: string;
@@ -176,7 +176,102 @@ export interface User {
 /**
  * 用户角色
  */
-export type UserRole = 'admin' | 'user' | 'readonly' | 'guest';
+export type UserRole = 'admin' | 'developer' | 'guest';
+
+/**
+ * 🔐 角色权限映射
+ */
+export interface RolePermissions {
+  admin: string[];
+  developer: string[];
+  guest: string[];
+}
+
+/**
+ * 🛡️ 权限常量
+ */
+export const PERMISSIONS = {
+  // 用户管理权限
+  USER_MANAGEMENT: 'user:management',
+  USER_CREATE: 'user:create',
+  USER_UPDATE: 'user:update',
+  USER_DELETE: 'user:delete',
+  USER_VIEW: 'user:view',
+  
+  // 系统设置权限
+  SYSTEM_SETTINGS: 'system:settings',
+  SYSTEM_CONFIG: 'system:config',
+  
+  // 数据库管理权限
+  DATABASE_MANAGEMENT: 'database:management',
+  DATABASE_CREATE: 'database:create',
+  DATABASE_UPDATE: 'database:update',
+  DATABASE_DELETE: 'database:delete',
+  DATABASE_VIEW: 'database:view',
+  
+  // API密钥管理权限
+  APIKEY_MANAGEMENT: 'apikey:management',
+  APIKEY_CREATE: 'apikey:create',
+  APIKEY_UPDATE: 'apikey:update',
+  APIKEY_DELETE: 'apikey:delete',
+  APIKEY_VIEW: 'apikey:view',
+  
+  // 查询工作台权限
+  QUERY_WORKSPACE: 'query:workspace',
+  QUERY_EXECUTE: 'query:execute',
+  QUERY_SAVE: 'query:save',
+  
+  // 仪表板权限
+  DASHBOARD_VIEW: 'dashboard:view'
+} as const;
+
+/**
+ * 🎯 默认角色权限配置
+ */
+export const DEFAULT_ROLE_PERMISSIONS: RolePermissions = {
+  admin: [
+    PERMISSIONS.USER_MANAGEMENT,
+    PERMISSIONS.USER_CREATE,
+    PERMISSIONS.USER_UPDATE,
+    PERMISSIONS.USER_DELETE,
+    PERMISSIONS.USER_VIEW,
+    PERMISSIONS.SYSTEM_SETTINGS,
+    PERMISSIONS.SYSTEM_CONFIG,
+    PERMISSIONS.DASHBOARD_VIEW
+  ],
+  developer: [
+    PERMISSIONS.DATABASE_MANAGEMENT,
+    PERMISSIONS.DATABASE_CREATE,
+    PERMISSIONS.DATABASE_UPDATE,
+    PERMISSIONS.DATABASE_DELETE,
+    PERMISSIONS.DATABASE_VIEW,
+    PERMISSIONS.APIKEY_MANAGEMENT,
+    PERMISSIONS.APIKEY_CREATE,
+    PERMISSIONS.APIKEY_UPDATE,
+    PERMISSIONS.APIKEY_DELETE,
+    PERMISSIONS.APIKEY_VIEW,
+    PERMISSIONS.QUERY_WORKSPACE,
+    PERMISSIONS.QUERY_EXECUTE,
+    PERMISSIONS.QUERY_SAVE,
+    PERMISSIONS.DASHBOARD_VIEW
+  ],
+  guest: [
+    PERMISSIONS.QUERY_WORKSPACE,
+    PERMISSIONS.QUERY_EXECUTE,
+    PERMISSIONS.DASHBOARD_VIEW
+  ]
+};
+
+/**
+ * 🔍 角色工具函数类型
+ */
+export interface RoleUtils {
+  parseRoles: (roleString: string) => UserRole[];
+  hasRole: (userRoles: UserRole[], requiredRole: UserRole) => boolean;
+  hasAnyRole: (userRoles: UserRole[], requiredRoles: UserRole[]) => boolean;
+  hasPermission: (userRoles: UserRole[], permission: string) => boolean;
+  getRolePermissions: (roles: UserRole[]) => string[];
+}
 
 /**
  * 用户状态
@@ -449,3 +544,68 @@ export interface ErrorInfo {
   details?: any;
   timestamp: string;
 }
+
+/**
+ * 🔧 系统配置类型
+ */
+export type ConfigType = 'string' | 'number' | 'boolean' | 'json';
+
+/**
+ * 🔧 系统配置分类
+ */
+export type ConfigCategory = 'general' | 'database' | 'ai' | 'security' | 'system';
+
+/**
+ * 🔧 系统配置接口
+ */
+export interface SystemConfig {
+  id: string;
+  key: string;
+  value: string;
+  type: ConfigType;
+  category: ConfigCategory;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 🔧 创建系统配置请求
+ */
+export interface CreateConfigRequest {
+  key: string;
+  value: string;
+  type: ConfigType;
+  category: ConfigCategory;
+  description?: string;
+}
+
+/**
+ * 🔧 更新系统配置请求
+ */
+export interface UpdateConfigRequest {
+  value?: string;
+  description?: string;
+  category?: ConfigCategory;
+}
+
+/**
+ * 🔧 配置分类映射
+ */
+export const CONFIG_CATEGORIES = {
+  general: { name: '通用', description: '通用配置', icon: 'Setting' },
+  database: { name: '数据库', description: '数据库连接配置', icon: 'Connection' },
+  ai: { name: 'AI', description: 'AI服务配置', icon: 'ChatLineRound' },
+  security: { name: '安全', description: '安全策略配置', icon: 'Lock' },
+  system: { name: '系统', description: '系统基础配置', icon: 'Document' }
+} as const;
+
+/**
+ * 🔧 配置类型映射
+ */
+export const CONFIG_TYPES = {
+  string: { name: '字符串', color: 'primary' },
+  number: { name: '数字', color: 'success' },
+  boolean: { name: '布尔值', color: 'warning' },
+  json: { name: 'JSON', color: 'info' }
+} as const;

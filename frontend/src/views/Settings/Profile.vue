@@ -28,7 +28,7 @@
             
             <div class="form-group">
               <label class="form-label">角色</label>
-              <input :value="getRoleName(user.role)" type="text" class="form-input" readonly />
+              <input :value="getRoleName(user.roles)" type="text" class="form-input" readonly />
             </div>
           </div>
           
@@ -215,14 +215,22 @@ const saveSettings = async () => {
   }
 }
 
-const getRoleName = (role: string): string => {
+const getRoleName = (roles: string): string => {
   const roleNames: Record<string, string> = {
     admin: '系统管理员',
-    user: '普通用户',
-    readonly: '只读用户',
+    developer: '开发者',
     guest: '访客用户'
   }
-  return roleNames[role] || role
+  
+  if (!roles) return '访客用户'
+  
+  const roleList = roles.split(',').map(role => role.trim())
+  const displayNames = roleList.map(role => roleNames[role] || role)
+  
+  // 如果有多个角色，显示最高权限的角色
+  if (roleList.includes('admin')) return '系统管理员'
+  if (roleList.includes('developer')) return '开发者'
+  return '访客用户'
 }
 
 const initializeForms = () => {
@@ -287,7 +295,7 @@ onMounted(() => {
 .form-input, .form-select {
   @apply w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg;
   @apply bg-white dark:bg-gray-700 text-gray-900 dark:text-white;
-  @apply focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+  @apply focus:ring-2 focus:ring-green-500 focus:border-transparent;
 }
 
 .form-input[readonly] {
@@ -325,7 +333,7 @@ onMounted(() => {
 }
 
 input[type="checkbox"]:checked + .checkbox-custom {
-  @apply bg-primary-500 border-primary-500;
+  @apply bg-green-500 border-green-500;
 }
 
 input[type="checkbox"]:checked + .checkbox-custom::after {

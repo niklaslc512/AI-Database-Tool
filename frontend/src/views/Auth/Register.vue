@@ -2,7 +2,7 @@
   <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
       <div class="text-center">
-        <div class="mx-auto h-12 w-12 bg-primary-600 rounded-lg flex items-center justify-center">
+        <div class="mx-auto h-12 w-12 bg-green-600 rounded-lg flex items-center justify-center">
           <span class="text-white font-bold text-xl">AI</span>
         </div>
         <h2 class="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
@@ -34,5 +34,5 @@
 </template>
 
 <script setup lang="ts">
-import { UserFilled } from '@element-plus/icons-vue'
+import { UserFilled } from '@/utils/iconMapping'
 </script>

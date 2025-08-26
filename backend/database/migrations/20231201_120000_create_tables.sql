@@ -1,11 +1,11 @@
--- 创建用户表
+-- 🏗️ 创建用户表
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   salt TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'user',        -- admin|user|readonly|guest
+  roles TEXT NOT NULL DEFAULT 'guest',      -- 🎭 多角色支持，逗号分隔: admin,developer,guest
   status TEXT NOT NULL DEFAULT 'active',    -- active|inactive|locked
   display_name TEXT,
   avatar_url TEXT,
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS login_logs (
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_roles ON users(roles);
 
 -- 数据库连接表索引
 CREATE INDEX IF NOT EXISTS idx_database_connections_user_id ON database_connections (user_id);

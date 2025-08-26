@@ -23,6 +23,7 @@
   "author": "niklaslc",
   "license": "MIT",
   "dependencies": {
+    "@types/uuid": "^10.0.0",
     "axios": "^1.6.2",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
@@ -40,6 +41,7 @@
     "sqlite3": "^5.1.6",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
+    "uuid": "^11.1.0",
     "winston": "^3.11.0",
     "winston-daily-rotate-file": "^5.0.0"
   },

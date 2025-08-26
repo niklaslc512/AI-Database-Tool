@@ -85,7 +85,7 @@ class DatabaseManager {
     }
 
     try {
-      // 用户表
+      // 🏗️ 用户表
       await this.db.exec(`
         CREATE TABLE IF NOT EXISTS users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,7 +93,7 @@ class DatabaseManager {
           email TEXT UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
           salt TEXT NOT NULL,
-          role TEXT NOT NULL DEFAULT 'user',        -- admin|user|readonly|guest
+          roles TEXT NOT NULL DEFAULT 'guest',      -- 🎭 多角色支持，逗号分隔: admin,developer,guest
           status TEXT NOT NULL DEFAULT 'active',    -- active|inactive|locked
           display_name TEXT,
           avatar_url TEXT,
@@ -103,6 +103,11 @@ class DatabaseManager {
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
+      `);
+      
+      // 🔍 创建角色索引以提高查询性能
+      await this.db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_users_roles ON users(roles);
       `);
 
       // 数据库连接表
@@ -161,6 +166,24 @@ class DatabaseManager {
         )
       `);
 
+      // 🔧 系统配置表
+      await this.db.exec(`
+        CREATE TABLE IF NOT EXISTS configs (
+          id TEXT PRIMARY KEY,
+          key TEXT UNIQUE NOT NULL,
+          value TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'string',     -- string|number|boolean|json
+          description TEXT,
+          category TEXT DEFAULT 'general',         -- general|database|ai|security|system
+          is_sensitive BOOLEAN DEFAULT 0,          -- 是否为敏感配置（如密码、密钥）
+          is_readonly BOOLEAN DEFAULT 0,           -- 是否为只读配置
+          validation_rule TEXT,                    -- 验证规则（JSON格式）
+          default_value TEXT,                      -- 默认值
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       // 创建索引
       await this.db.exec(`
         CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
@@ -169,6 +192,8 @@ class DatabaseManager {
         CREATE INDEX IF NOT EXISTS idx_query_history_user_id ON query_history (user_id);
         CREATE INDEX IF NOT EXISTS idx_query_history_connection_id ON query_history (connection_id);
         CREATE INDEX IF NOT EXISTS idx_query_history_created_at ON query_history (created_at);
+        CREATE INDEX IF NOT EXISTS idx_configs_key ON configs (key);
+        CREATE INDEX IF NOT EXISTS idx_configs_category ON configs (category);
       `);
 
       // 创建更新时间触发器
@@ -196,6 +221,15 @@ class DatabaseManager {
           FOR EACH ROW
           BEGIN
             UPDATE ai_configs SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+          END;
+      `);
+
+      await this.db.exec(`
+        CREATE TRIGGER IF NOT EXISTS update_configs_updated_at
+          AFTER UPDATE ON configs
+          FOR EACH ROW
+          BEGIN
+            UPDATE configs SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
           END;
       `);
 

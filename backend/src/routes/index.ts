@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { createUserRoutes } from './users';
 import { createApiKeyRoutes } from './apiKeys';
 import { createAuthRoutes } from './auth';
+import { createConfigRoutes } from './configs';
 
 export function createRoutes(): Router {
   const router = Router();
@@ -41,6 +42,7 @@ export function createRoutes(): Router {
           users: '/users',
           apiKeys: '/api-keys',
           auth: '/auth',
+          configs: '/configs',
           connections: '/connections',
           query: '/query',
           ai: '/ai'
@@ -61,6 +63,10 @@ export function createRoutes(): Router {
   console.log('🔐 注册外部授权路由...');
   // 外部授权路由
   router.use('/auth', createAuthRoutes());
+
+  console.log('🔧 注册系统配置路由...');
+  // 系统配置路由（仅admin可访问）
+  router.use('/configs', createConfigRoutes());
 
   // TODO: 在这里添加其他路由模块
   // router.use('/connections', connectionRoutes);

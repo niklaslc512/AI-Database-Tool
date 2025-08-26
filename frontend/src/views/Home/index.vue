@@ -88,10 +88,10 @@
               加入成千上万的开发者，体验AI驱动的数据库管理平台
             </p>
             <div class="cta-actions">
-              <BaseButton size="xl" @click="handleGetStarted">
+              <BaseButton variant="primary" size="xl" @click="handleGetStarted">
                 免费开始使用
               </BaseButton>
-              <BaseButton variant="ghost" size="xl" @click="handleContactUs">
+              <BaseButton variant="outline" size="xl" @click="handleContactUs">
                 联系我们
               </BaseButton>
             </div>
@@ -272,7 +272,7 @@ onMounted(() => {
 @reference "@/styles/main.css";
 
 .home-page {
-  @apply min-h-screen bg-white dark:bg-gray-900;
+  @apply min-h-screen bg-white dark:bg-black;
 }
 
 .main-content {
@@ -281,7 +281,7 @@ onMounted(() => {
 
 /* 演示区域样式 */
 .demo-section {
-  @apply py-20 lg:py-32 bg-gray-50 dark:bg-gray-800;
+  @apply py-20 lg:py-32 bg-green-50 dark:bg-green-950;
 }
 
 .demo-container {
@@ -294,9 +294,9 @@ onMounted(() => {
 
 .section-badge {
   @apply inline-flex items-center space-x-2 px-4 py-2 mb-6;
-  @apply bg-primary-50 dark:bg-primary-900/30 rounded-full;
-  @apply text-primary-600 dark:text-primary-400 text-sm font-medium;
-  @apply border border-primary-200 dark:border-primary-800;
+  @apply bg-green-50 dark:bg-green-900/30 rounded-full;
+  @apply text-green-600 dark:text-green-400 text-sm font-medium;
+  @apply border border-green-200 dark:border-green-800;
 }
 
 .badge-icon {
@@ -305,12 +305,12 @@ onMounted(() => {
 
 .section-title {
   @apply text-3xl sm:text-4xl lg:text-5xl font-bold;
-  @apply text-gray-900 dark:text-white mb-6;
+  @apply text-black dark:text-white mb-6;
   @apply tracking-tight leading-tight;
 }
 
 .section-subtitle {
-  @apply text-lg sm:text-xl text-gray-600 dark:text-gray-300;
+  @apply text-lg sm:text-xl text-black dark:text-white;
   @apply leading-relaxed;
 }
 
@@ -323,13 +323,13 @@ onMounted(() => {
 }
 
 .demo-placeholder {
-  @apply relative aspect-video bg-gradient-to-br from-gray-900 to-gray-800;
+  @apply relative aspect-video bg-gradient-to-br from-black to-green-900;
   @apply flex items-center justify-center cursor-pointer;
-  @apply hover:from-gray-800 hover:to-gray-700 transition-all duration-300;
+  @apply hover:from-green-900 hover:to-black transition-all duration-300;
 }
 
 .play-button {
-  @apply w-20 h-20 bg-primary-500 rounded-full;
+  @apply w-20 h-20 bg-green-500 rounded-full;
   @apply flex items-center justify-center text-white;
   @apply shadow-lg hover:shadow-xl transform hover:scale-110;
   @apply transition-all duration-300;
@@ -349,7 +349,7 @@ onMounted(() => {
 
 /* 技术优势区域样式 */
 .advantages-section {
-  @apply py-20 lg:py-32 bg-white dark:bg-gray-900;
+  @apply py-20 lg:py-32 bg-white dark:bg-black;
 }
 
 .advantages-container {
@@ -366,17 +366,17 @@ onMounted(() => {
 
 .advantage-icon {
   @apply w-16 h-16 mx-auto mb-6;
-  @apply bg-primary-100 dark:bg-primary-900/30 rounded-2xl;
+  @apply bg-green-100 dark:bg-green-900/30 rounded-2xl;
   @apply flex items-center justify-center;
-  @apply text-primary-600 dark:text-primary-400;
+  @apply text-green-600 dark:text-green-400;
 }
 
 .advantage-title {
-  @apply text-xl font-bold text-gray-900 dark:text-white mb-4;
+  @apply text-xl font-bold text-black dark:text-white mb-4;
 }
 
 .advantage-description {
-  @apply text-gray-600 dark:text-gray-300 mb-6 leading-relaxed;
+  @apply text-black dark:text-white mb-6 leading-relaxed;
 }
 
 .advantage-stats {
@@ -388,16 +388,16 @@ onMounted(() => {
 }
 
 .stat-value {
-  @apply text-2xl font-bold text-primary-600 dark:text-primary-400;
+  @apply text-2xl font-bold text-green-600 dark:text-green-400;
 }
 
 .stat-label {
-  @apply text-sm text-gray-500 dark:text-gray-400 mt-1;
+  @apply text-sm text-black dark:text-white mt-1;
 }
 
 /* CTA区域样式 */
 .cta-section {
-  @apply py-20 lg:py-32 bg-gradient-to-r from-primary-500 to-primary-600;
+  @apply py-20 lg:py-32 bg-gradient-to-r from-green-500 to-green-600;
 }
 
 .cta-container {
@@ -410,7 +410,7 @@ onMounted(() => {
 }
 
 .cta-subtitle {
-  @apply text-xl text-primary-100 mb-8 leading-relaxed;
+  @apply text-xl text-green-100 mb-8 leading-relaxed;
 }
 
 .cta-actions {
@@ -419,7 +419,7 @@ onMounted(() => {
 
 /* 页脚样式 */
 .footer {
-  @apply bg-gray-900 text-gray-300;
+  @apply bg-black text-white;
 }
 
 .footer-container {
@@ -443,7 +443,7 @@ onMounted(() => {
 }
 
 .footer-description {
-  @apply text-gray-400 leading-relaxed;
+  @apply text-white leading-relaxed;
 }
 
 .footer-links {
@@ -463,14 +463,14 @@ onMounted(() => {
 }
 
 .link {
-  @apply text-gray-400 hover:text-white transition-colors duration-200;
+  @apply text-white hover:text-green-400 transition-colors duration-200;
 }
 
 .footer-bottom {
-  @apply pt-8 border-t border-gray-800 text-center;
+  @apply pt-8 border-t border-green-800 text-center;
 }
 
 .copyright {
-  @apply text-gray-500;
+  @apply text-white;
 }
 </style>

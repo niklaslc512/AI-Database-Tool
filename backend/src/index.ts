@@ -11,6 +11,7 @@ import { notFoundHandler } from './middleware/notFoundHandler';
 import { requestLogger } from './utils/logger';
 import { connectDatabase } from './config/database';
 import { createRoutes } from './routes';
+import { ConfigService } from './services/ConfigService';
 
 // 加载环境变量
 dotenv.config();
@@ -104,6 +105,14 @@ class App {
     try {
       // 初始化数据库
       await connectDatabase();
+
+      // 🔧 初始化系统配置服务
+      console.log('🔧 初始化系统配置服务...');
+      const configService = ConfigService.getInstance();
+      await configService.initialize({
+        overrideEnv: true        // 覆盖环境变量
+      });
+      console.log('✅ 系统配置服务初始化完成');
 
       // 初始化路由（需要在数据库连接后）
       await this.initializeRoutes();
