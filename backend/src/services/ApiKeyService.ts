@@ -448,8 +448,8 @@ export class ApiKeyService {
    */
   private mapDbApiKeyToApiKey(dbKey: any): ApiKey {
     const apiKey: ApiKey = {
-      id: dbKey.id?.toString(),
-      userId: dbKey.user_id?.toString(),
+      id: dbKey.id,  // 🔧 UUID字符串，无需转换
+      userId: dbKey.user_id,  // 🔧 UUID字符串，无需转换
       name: dbKey.name,
       apiKey: dbKey.api_key,
       permissions: dbKey.permissions ? JSON.parse(dbKey.permissions) : ['read'],

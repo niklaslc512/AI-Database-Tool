@@ -239,7 +239,7 @@ export class UserService {
       `, [user.id]);
 
       // 记录登录成功
-      await this.logLoginAttempt(loginData.username, true, null, clientInfo, user.id);
+      // await this.logLoginAttempt(loginData.username, true, null, clientInfo, user.id);
 
       // 🔑 生成JWT令牌（包含多角色信息）
       const userRoles = RoleUtils.parseRoles(user.roles);
@@ -522,7 +522,7 @@ export class UserService {
    */
   private mapDbUserToUser(dbUser: any): User {
     const user: User = {
-      id: dbUser.id?.toString(),
+      id: dbUser.id,  // 🔧 UUID字符串，无需转换
       username: dbUser.username,
       email: dbUser.email,
       passwordHash: dbUser.password_hash,

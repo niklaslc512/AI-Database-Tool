@@ -1,90 +1,81 @@
 <template>
-  <div class="min-h-screen bg-base-100 p-6">
-    <!-- 页面标题 -->
-    <div class="flex items-center justify-between mb-8">
-      <div>
-        <h1 class="text-3xl font-bold text-base-content flex items-center gap-3">
-          <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-            </svg>
-          </div>
-          数据库连接管理
-        </h1>
-        <p class="text-base-content/70 mt-2">
-          管理您的数据库连接配置，支持PostgreSQL和MongoDB数据库
-        </p>
+  <div class=" flex flex-col bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 overflow-hidden">
+    <!-- 📊 页面头部 -->
+    <div class="bg-white/80 backdrop-blur-sm border-b border-gray-200 flex-shrink-0 px-6 py-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+            数据库连接管理
+          </h1>
+          <p class="mt-2 text-gray-600">
+            管理和配置数据库连接
+          </p>
+        </div>
+        <button 
+          @click="showCreateModal = true" 
+          class="btn bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+        >
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          添加连接
+        </button>
       </div>
-      <button 
-        @click="showCreateModal = true" 
-        class="btn btn-primary gap-2"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
-        添加连接
-      </button>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-      <div class="card bg-base-200 shadow-sm">
-        <div class="card-body p-6">
+    <!-- 统计卡片区域 -->
+    <div class="bg-white/70 backdrop-blur-sm border-b border-gray-200 px-6 py-4 shadow-sm flex-shrink-0">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-base-content/70 text-sm font-medium">总连接数</p>
-              <p class="text-2xl font-bold text-base-content">{{ connections.length }}</p>
+              <p class="text-gray-600 text-sm font-medium">总连接数</p>
+              <p class="text-2xl font-bold text-gray-900">{{ connections.length }}</p>
             </div>
-            <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
               </svg>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="card bg-base-200 shadow-sm">
-        <div class="card-body p-6">
+        <div class="bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-base-content/70 text-sm font-medium">在线连接</p>
-              <p class="text-2xl font-bold text-success">{{ onlineConnectionsCount }}</p>
+              <p class="text-gray-600 text-sm font-medium">在线连接</p>
+              <p class="text-2xl font-bold text-green-600">{{ onlineConnectionsCount }}</p>
             </div>
-            <div class="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="card bg-base-200 shadow-sm">
-        <div class="card-body p-6">
+        <div class="bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-base-content/70 text-sm font-medium">离线连接</p>
-              <p class="text-2xl font-bold text-error">{{ offlineConnectionsCount }}</p>
+              <p class="text-gray-600 text-sm font-medium">离线连接</p>
+              <p class="text-2xl font-bold text-red-600">{{ offlineConnectionsCount }}</p>
             </div>
-            <div class="w-12 h-12 bg-error/10 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="card bg-base-200 shadow-sm">
-        <div class="card-body p-6">
+        <div class="bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-base-content/70 text-sm font-medium">未测试</p>
-              <p class="text-2xl font-bold text-warning">{{ untestedConnectionsCount }}</p>
+              <p class="text-gray-600 text-sm font-medium">未测试</p>
+              <p class="text-2xl font-bold text-yellow-600">{{ untestedConnectionsCount }}</p>
             </div>
-            <div class="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
@@ -93,99 +84,106 @@
       </div>
     </div>
 
-    <!-- 数据库连接列表 -->
-    <div class="card bg-base-200 shadow-sm">
-      <div class="card-body p-0">
+    <!-- 主要内容区域 -->
+    <div class="flex-1 flex flex-col overflow-hidden min-h-0">
+      <div class="bg-white/70 backdrop-blur-sm flex flex-col shadow-lg overflow-hidden min-h-0 rounded-xl border border-white/20">
         <!-- 表头 -->
-        <div class="flex items-center justify-between p-6 border-b border-base-300">
-          <h2 class="text-xl font-semibold text-base-content">数据库连接列表</h2>
+        <div class="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+          <h2 class="text-xl font-semibold text-gray-900">
+            数据库连接
+          </h2>
           <div class="flex items-center gap-4">
             <!-- 搜索框 -->
-            <div class="form-control">
+            <div class="relative">
+              <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
               <input 
                 v-model="searchQuery" 
                 type="text" 
-                placeholder="搜索连接名称..." 
-                class="input input-bordered input-sm w-64"
+                placeholder="搜索连接..." 
+                class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
               />
             </div>
             <!-- 筛选器 -->
-            <select v-model="typeFilter" class="select select-bordered select-sm">
-              <option value="">全部类型</option>
+            <select 
+              v-model="typeFilter" 
+              class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+            >
+              <option value="">所有类型</option>
               <option value="postgresql">PostgreSQL</option>
               <option value="mongodb">MongoDB</option>
-            </select>
-            <select v-model="statusFilter" class="select select-bordered select-sm">
-              <option value="">全部状态</option>
-              <option value="connected">在线</option>
-              <option value="disconnected">离线</option>
-              <option value="untested">未测试</option>
             </select>
           </div>
         </div>
 
         <!-- 表格内容 -->
-        <div v-if="loading" class="flex items-center justify-center py-12">
-          <span class="loading loading-spinner loading-lg text-primary"></span>
-        </div>
+        <div class="flex-1 overflow-y-auto min-h-0 p-6">
+          <div v-if="loading" class="flex items-center justify-center py-12">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+          </div>
 
-        <div v-else-if="filteredConnections.length === 0" class="flex flex-col items-center justify-center py-12">
-          <div class="w-16 h-16 bg-base-300 rounded-full flex items-center justify-center mb-4">
-            <svg class="w-8 h-8 text-base-content/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div v-else-if="filteredConnections.length === 0" class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
             </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">暂无数据库连接</h3>
+            <p class="text-gray-600 mb-6">开始创建您的第一个数据库连接</p>
+            <button 
+              @click="showCreateModal = true" 
+              class="btn bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white border-0"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              添加连接
+            </button>
           </div>
-          <h3 class="text-lg font-medium text-base-content mb-2">暂无数据库连接</h3>
-          <p class="text-base-content/70 mb-4">创建您的第一个数据库连接来开始使用</p>
-          <button @click="showCreateModal = true" class="btn btn-primary">
-            添加数据库连接
-          </button>
-        </div>
 
-        <div v-else class="overflow-x-auto">
-          <table class="table table-zebra">
-            <thead>
-              <tr>
-                <th class="font-semibold text-base-content">连接信息</th>
-                <th class="font-semibold text-base-content">数据库类型</th>
-                <th class="font-semibold text-base-content">连接状态</th>
-                <th class="font-semibold text-base-content">最后测试</th>
-                <th class="font-semibold text-base-content">创建时间</th>
-                <th class="font-semibold text-base-content">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="connection in filteredConnections" :key="connection.id" class="hover">
-                <!-- 连接信息 -->
-                <td>
-                  <div class="flex flex-col">
-                    <div class="font-medium text-base-content">{{ connection.name }}</div>
-                    <div class="text-sm text-base-content/70 mt-1">
-                      {{ maskDsn(connection.dsn) }}
+          <div v-else class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr class="text-gray-700">
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">连接信息</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">数据库类型</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">连接状态</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">最后测试</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+              </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="connection in filteredConnections" :key="connection.id" class="hover:bg-gray-50 transition-colors duration-200">
+                  <!-- 连接信息 -->
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex flex-col">
+                      <div class="text-sm font-medium text-gray-900">{{ connection.name }}</div>
+                      <div class="text-sm text-gray-500 mt-1">
+                        {{ maskDsn(connection.dsn) }}
+                      </div>
                     </div>
-                  </div>
-                </td>
+                  </td>
 
-                <!-- 数据库类型 -->
-                <td>
-                  <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center" :class="getTypeIconClass(connection.type)">
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-                      </svg>
+                  <!-- 数据库类型 -->
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center gap-2">
+                      <div class="w-8 h-8 rounded-lg flex items-center justify-center" :class="getTypeIconClass(connection.type)">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                        </svg>
+                      </div>
+                      <span class="text-sm font-medium text-gray-900">{{ getTypeLabel(connection.type) }}</span>
                     </div>
-                    <span class="font-medium">{{ getTypeLabel(connection.type) }}</span>
-                  </div>
-                </td>
+                  </td>
 
                 <!-- 连接状态 -->
-                <td>
+                <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center gap-2">
-                    <div class="badge" :class="getStatusBadgeClass(connection.status)">
+                    <div class="inline-flex px-2 py-1 text-xs font-semibold rounded-full" :class="getStatusBadgeClass(connection.status)">
                       {{ getStatusText(connection.status) }}
                     </div>
                     <div v-if="connection.testResult" class="tooltip" :data-tip="connection.testResult">
-                      <svg class="w-4 h-4 text-base-content/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
@@ -193,70 +191,56 @@
                 </td>
 
                 <!-- 最后测试 -->
-                <td>
-                  <div class="text-sm">
-                    <div v-if="connection.lastTestedAt">
-                      {{ formatRelativeTime(connection.lastTestedAt) }}
-                    </div>
-                    <div v-else class="text-base-content/50">
-                      从未测试
-                    </div>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <div v-if="connection.lastTestedAt">
+                    {{ formatRelativeTime(connection.lastTestedAt) }}
+                  </div>
+                  <div v-else class="text-gray-400">
+                    从未测试
                   </div>
                 </td>
 
                 <!-- 创建时间 -->
-                <td>
-                  <div class="text-sm">
-                    <div>{{ formatDate(connection.createdAt) }}</div>
-                    <div class="text-base-content/70">{{ formatTime(connection.createdAt) }}</div>
-                  </div>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <div>{{ formatDate(connection.createdAt) }}</div>
+                  <div class="text-gray-400">{{ formatTime(connection.createdAt) }}</div>
                 </td>
 
-                <!-- 操作 -->
-                <td>
-                  <div class="flex items-center gap-2">
-                    <button 
-                      @click="testConnection(connection)" 
-                      class="btn btn-ghost btn-sm"
-                      title="测试连接"
-                      :disabled="testingConnections.has(connection.id)"
-                    >
-                      <span v-if="testingConnections.has(connection.id)" class="loading loading-spinner loading-sm"></span>
-                      <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                    </button>
-                    <button 
-                      @click="editConnection(connection)" 
-                      class="btn btn-ghost btn-sm"
-                      title="编辑"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button 
-                      @click="deleteConnection(connection)" 
-                      class="btn btn-ghost btn-sm text-error"
-                      title="删除"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+                  <!-- 操作 -->
+                  <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                    <div class="flex items-center justify-center space-x-2">
+                      <button 
+                        @click="editConnection(connection)" 
+                        class="text-blue-600 hover:text-blue-900 transition-colors duration-200"
+                        title="编辑"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button 
+                        @click="deleteConnection(connection)" 
+                        class="text-red-600 hover:text-red-900 transition-colors duration-200"
+                        title="删除"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                 </tr>
+               </tbody>
+             </table>
+           </div>
+         </div>
+       </div>
+     </div>
 
     <!-- 创建/编辑数据库连接模态框 -->
     <div v-if="showCreateModal" class="modal modal-open">
-      <div class="modal-box max-w-2xl">
-        <h3 class="font-bold text-lg mb-4">
+      <div class="modal-box max-w-2xl bg-white">
+        <h3 class="font-bold text-lg mb-4 text-gray-900">
           {{ editingConnection ? '编辑数据库连接' : '创建数据库连接' }}
         </h3>
         
@@ -264,13 +248,13 @@
           <!-- 连接名称 -->
           <div class="form-control">
             <label class="label">
-              <span class="label-text font-medium">连接名称 *</span>
+              <span class="label-text font-medium text-gray-700">连接名称 *</span>
             </label>
             <input 
               v-model="formData.name" 
               type="text" 
               placeholder="请输入连接名称" 
-              class="input input-bordered w-full"
+              class="input input-bordered w-full border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200"
               required
             />
           </div>
@@ -278,15 +262,15 @@
           <!-- 数据库类型 -->
           <div class="form-control">
             <label class="label">
-              <span class="label-text font-medium">数据库类型 *</span>
+              <span class="label-text font-medium text-gray-700">数据库类型 *</span>
             </label>
             <div class="grid grid-cols-2 gap-3">
-              <label class="label cursor-pointer justify-start gap-3 p-3 border border-base-300 rounded-lg hover:bg-base-200 transition-colors" :class="{ 'border-primary bg-primary/10': formData.type === 'postgresql' }">
+              <label class="label cursor-pointer justify-start gap-3 p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors" :class="{ 'border-green-500 bg-green-50': formData.type === 'postgresql' }">
                 <input 
                   v-model="formData.type" 
                   value="postgresql" 
                   type="radio" 
-                  class="radio radio-primary"
+                  class="radio radio-success"
                   required
                 />
                 <div class="flex items-center gap-2">
@@ -296,17 +280,17 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="label-text font-medium">PostgreSQL</div>
-                    <div class="text-xs text-base-content/70">关系型数据库</div>
+                    <div class="label-text font-medium text-gray-900">PostgreSQL</div>
+                    <div class="text-xs text-gray-600">关系型数据库</div>
                   </div>
                 </div>
               </label>
-              <label class="label cursor-pointer justify-start gap-3 p-3 border border-base-300 rounded-lg hover:bg-base-200 transition-colors" :class="{ 'border-primary bg-primary/10': formData.type === 'mongodb' }">
+              <label class="label cursor-pointer justify-start gap-3 p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors" :class="{ 'border-green-500 bg-green-50': formData.type === 'mongodb' }">
                 <input 
                   v-model="formData.type" 
                   value="mongodb" 
                   type="radio" 
-                  class="radio radio-primary"
+                  class="radio radio-success"
                   required
                 />
                 <div class="flex items-center gap-2">
@@ -316,8 +300,8 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="label-text font-medium">MongoDB</div>
-                    <div class="text-xs text-base-content/70">文档型数据库</div>
+                    <div class="label-text font-medium text-gray-900">MongoDB</div>
+                    <div class="text-xs text-gray-600">文档型数据库</div>
                   </div>
                 </div>
               </label>
@@ -377,20 +361,24 @@
             </div>
           </div>
 
-          <div class="modal-action">
-            <button type="button" @click="closeCreateModal" class="btn btn-ghost">
-              取消
-            </button>
-            <button type="submit" class="btn btn-primary" :disabled="submitting">
-              <span v-if="submitting" class="loading loading-spinner loading-sm"></span>
-              {{ editingConnection ? '更新' : '创建' }}
-            </button>
+          <div class="modal-action flex justify-end">
+            <div class="flex gap-2">
+              <button type="button" @click="closeCreateModal" class="btn btn-ghost">取消</button>
+              <button 
+                type="submit" 
+                class="btn bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white border-0"
+                :disabled="submitting"
+              >
+                <span v-if="submitting" class="loading loading-spinner loading-sm"></span>
+                {{ submitting ? '保存中...' : (editingConnection ? '更新连接' : '创建连接') }}
+              </button>
+            </div>
           </div>
         </form>
-      </div>
-    </div>
-  </div>
-</template>
+       </div>
+     </div>
+   </div>
+ </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
@@ -407,7 +395,6 @@ const editingConnection = ref<DatabaseConnection | null>(null)
 const searchQuery = ref('')
 const typeFilter = ref('')
 const statusFilter = ref('')
-const testingConnections = ref(new Set<string>())
 
 // 数据库连接列表
 const connections = ref<DatabaseConnection[]>([])
@@ -566,19 +553,7 @@ const editConnection = (connection: DatabaseConnection) => {
   showCreateModal.value = true
 }
 
-const testConnection = async (connection: DatabaseConnection) => {
-  testingConnections.value.add(connection.id)
-  try {
-    await connectionApi.testConnection({ id: connection.id })
-    showToast('连接测试成功', 'success')
-    await loadConnections()
-  } catch (error) {
-    showToast('连接测试失败', 'error')
-    console.error('连接测试失败:', error)
-  } finally {
-    testingConnections.value.delete(connection.id)
-  }
-}
+
 
 const deleteConnection = async (connection: DatabaseConnection) => {
   if (!confirm(`确定要删除数据库连接 "${connection.name}" 吗？此操作不可恢复。`)) {

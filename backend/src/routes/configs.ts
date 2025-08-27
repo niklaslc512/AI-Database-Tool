@@ -106,7 +106,7 @@ export function createConfigRoutes(): Router {
         includeValue === 'true'
       );
 
-      logger.info(`🔍 管理员 ${req.user?.username} 查看配置详情: ${config.key}`);
+      logger.info(`🔍 管理员 ${req.user?.username} 查看配置详情: ${config.config_key}`);
 
       res.json(config);
     } catch (error) {
@@ -138,18 +138,18 @@ export function createConfigRoutes(): Router {
       const request: CreateConfigRequest = req.body;
 
       // ✅ 基本验证
-      if (!request.key || !request.value) {
+      if (!request.config_key || !request.config_value) {
         throw new AppError('配置键和配置值不能为空', 400);
       }
 
       // 🔑 验证配置键格式
-      if (!/^[a-zA-Z][a-zA-Z0-9._-]*$/.test(request.key)) {
+      if (!/^[a-zA-Z][a-zA-Z0-9._-]*$/.test(request.config_key)) {
         throw new AppError('配置键格式无效，只能包含字母、数字、点、下划线和连字符，且必须以字母开头', 400);
       }
 
       const config = await configService.createConfig(request, req.user?.id);
 
-      logger.info(`✅ 管理员 ${req.user?.username} 创建配置: ${config.key}`);
+      logger.info(`✅ 管理员 ${req.user?.username} 创建配置: ${config.config_key}`);
 
       res.status(201).json(config);
     } catch (error) {
@@ -185,7 +185,7 @@ export function createConfigRoutes(): Router {
 
       const config = await configService.updateConfig(id as string, request, req.user?.id);
 
-      logger.info(`✅ 管理员 ${req.user?.username} 更新配置: ${config.key}`);
+      logger.info(`✅ 管理员 ${req.user?.username} 更新配置: ${config.config_key}`);
 
       res.json(config);
     } catch (error) {
@@ -214,7 +214,7 @@ export function createConfigRoutes(): Router {
       
       await configService.deleteConfig(id as string, req.user?.id);
 
-      logger.info(`✅ 管理员 ${req.user?.username} 删除配置: ${config.key}`);
+      logger.info(`✅ 管理员 ${req.user?.username} 删除配置: ${config.config_key}`);
 
       res.json({ message: '配置删除成功' });
     } catch (error) {

@@ -464,43 +464,46 @@ export type ConfigCategory = 'general' | 'database' | 'ai' | 'security' | 'syste
  */
 export interface Config {
   id: string;
-  key: string;
-  value: string;
-  type: ConfigType;
-  description?: string;
-  category: ConfigCategory;
-  createdAt: Date;
-  updatedAt: Date;
+  user_id?: string;                    // NULL表示系统级配置
+  config_key: string;                  // 配置键名
+  config_value?: string;               // JSON格式配置值
+  config_type: string;                 // user|system|global
+  description?: string;                // 配置描述
+  is_encrypted: boolean;               // 是否加密存储
+  created_at: Date;
+  updated_at: Date;
 }
 
 /**
  * 🔧 创建配置请求
  */
 export interface CreateConfigRequest {
-  key: string;
-  value: string;
-  type?: ConfigType;
-  description?: string;
-  category?: ConfigCategory;
+  user_id?: string;                    // NULL表示系统级配置
+  config_key: string;                  // 配置键名
+  config_value?: string;               // JSON格式配置值
+  config_type?: string;                // user|system|global，默认user
+  description?: string;                // 配置描述
+  is_encrypted?: boolean;              // 是否加密存储，默认false
 }
 
 /**
  * 🔧 更新配置请求
  */
 export interface UpdateConfigRequest {
-  value?: string;
-  description?: string;
-  category?: ConfigCategory;
+  config_value?: string;               // JSON格式配置值
+  config_type?: string;                // user|system|global
+  description?: string;                // 配置描述
+  is_encrypted?: boolean;              // 是否加密存储
 }
 
 /**
  * 🔧 配置变更事件
  */
 export interface ConfigChangeEvent {
-  key: string;
+  config_key: string;
   oldValue: string;
   newValue: string;
-  type: ConfigType;
+  config_type: string;
   timestamp: Date;
   userId?: string | undefined;         // 操作用户ID
 }
@@ -534,6 +537,98 @@ export class AppError extends Error {
 
     Error.captureStackTrace(this, this.constructor);
   }
+}
+
+/**
+ * 🤖 AI对话消息接口
+ */
+export interface AIConversationMessage {
+  id: string;
+  conversation_id: string;
+  user_id: string;
+  database_connection_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  token_cost?: string | null;  // JSON格式存储token消耗信息
+  model?: string;
+  response_time?: number;  // 响应时间(毫秒)
+  status?: 'success' | 'error' | 'pending';
+  error_message?: string;
+  metadata?: string | null;  // JSON格式存储额外信息
+  created_at: Date;
+}
+
+/**
+ * 🤖 AI对话历史查询参数
+ */
+export interface AIConversationHistoryParams {
+  conversation_id: string;
+  limit?: number;  // 获取历史消息的条数限制
+  before_message_id?: string;  // 获取指定消息之前的历史
+  status?: 'success' | 'error' | 'pending';  // 按状态过滤消息
+}
+
+/**
+ * 🤖 创建AI对话消息请求
+ */
+export interface CreateAIConversationMessageRequest {
+  conversation_id: string;
+  user_id: string;
+  database_connection_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  token_cost?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    cost_usd?: number;
+  } | undefined;
+  model?: string;
+  response_time?: number;
+  status?: 'success' | 'error' | 'pending';
+  error_message?: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * 🤖 SQL执行日志接口
+ */
+export interface SQLExecuteLog {
+  id: string;
+  user_id: string;
+  database_connection_id: string;
+  conversation_id?: string;  // 关联的对话ID
+  sql_query: string;
+  execution_time?: number;  // 执行时间(毫秒)
+  rows_affected?: number;
+  status?: 'success' | 'error';
+  error_message?: string;
+  result_preview?: string | null;  // JSON格式存储结果预览
+  created_at: Date;
+}
+
+/**
+ * 🤖 创建SQL执行日志请求
+ */
+export interface CreateSQLExecuteLogRequest {
+  user_id: string;
+  database_connection_id: string;
+  conversation_id?: string;
+  sql_query: string;
+  execution_time: number;
+  rows_affected?: number;
+  status: 'success' | 'error';
+  error_message?: string;
+  result_preview?: Record<string, any>[];
+}
+
+/**
+ * 🤖 AI对话配置接口
+ */
+export interface AIConversationConfig {
+  max_history_messages: number;  // 最大历史消息条数
+  include_system_messages: boolean;  // 是否包含系统消息
+  context_window_size: number;  // 上下文窗口大小
 }
 
 /**

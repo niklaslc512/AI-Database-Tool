@@ -6,9 +6,7 @@
         <div>
           <h1 class="text-9xl font-bold text-gray-300 dark:text-gray-600">404</h1>
           <div class="relative -mt-8">
-            <el-icon class="w-16 h-16 text-gray-400 mx-auto">
-              <QuestionFilled />
-            </el-icon>
+            <QuestionFilled class="w-16 h-16 text-gray-400 mx-auto" />
           </div>
         </div>
 
@@ -24,13 +22,13 @@
 
         <!-- 操作按钮 -->
         <div class="space-y-4">
-          <el-button type="primary" size="large" @click="goHome">
+          <button class="btn btn-primary btn-lg" @click="goHome">
             返回首页
-          </el-button>
+          </button>
           <div>
-            <el-button text @click="goBack">
+            <button class="btn btn-ghost" @click="goBack">
               返回上一页
-            </el-button>
+            </button>
           </div>
         </div>
       </div>

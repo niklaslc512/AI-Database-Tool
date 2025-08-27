@@ -9,16 +9,17 @@ const Layout = () => import('@/components/Layout/MainLayout.vue')
 // 页面组件
 const Home = () => import('@/views/Home/index.vue')
 const Dashboard = () => import('@/views/Dashboard/index.vue')
-const Connections = () => import('@/views/Connections/index.vue')
-const QueryWorkspace = () => import('@/views/Query/index.vue')
-const Settings = () => import('@/views/Settings/index.vue')
 const Login = () => import('@/views/Auth/Login.vue')
 const Register = () => import('@/views/Auth/Register.vue')
 
 // 🔐 Admin专用页面
 const UserManagement = () => import('@/views/Admin/UserManagement.vue')
 const SystemSettings = () => import('@/views/Admin/SystemSettings.vue')
-const ApiKeyManagement = () => import('@/views/ApiKeys/index.vue')
+
+// 👨‍💻 Developer专用页面
+const QueryWorkspace = () => import('@/views/Developer/Query.vue')
+const ApiKeyManagement = () => import('@/views/Developer/ApiKeys.vue')
+const DatabaseConnections = () => import('@/views/Developer/DatabaseConnections.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -73,7 +74,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'connections',
         name: 'Connections',
-        component: Connections,
+        component: DatabaseConnections,
         meta: {
           title: '数据库连接',
           icon: 'Connection',
@@ -119,7 +120,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'database',
         name: 'DatabaseManagement',
-        component: () => import('@/views/DatabaseConnections/index.vue'),
+        component: DatabaseConnections,
         meta: {
           title: '数据库表管理',
           icon: 'Database',
@@ -136,17 +137,6 @@ const routes: RouteRecordRaw[] = [
           icon: 'Key',
           requiresPermission: PERMISSIONS.APIKEY_MANAGEMENT,
           roles: ['developer']
-        }
-      },
-      {
-        path: 'settings',
-        name: 'Settings',
-        component: Settings,
-        meta: {
-          title: '个人设置',
-          icon: 'User',
-          requiresPermission: PERMISSIONS.DASHBOARD_VIEW,
-          roles: ['admin', 'developer', 'guest']
         }
       },
       // 🧪 权限测试页面（仅开发环境）

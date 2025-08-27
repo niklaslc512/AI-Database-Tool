@@ -83,8 +83,8 @@ async function initializeUsers(db: Database<sqlite3.Database, sqlite3.Statement>
 
   for (const userData of defaultUsers) {
     try {
-      // 检查用户是否已存在
-      const existingUser = await db.get('SELECT id FROM users WHERE username = ?', userData.username);
+      // 检查用户是否已存在（通过用户名或ID）
+      const existingUser = await db.get('SELECT id FROM users WHERE username = ? OR id = ?', userData.username, userData.id);
       
       if (existingUser) {
         console.log(`  ⏭️  用户 ${userData.username} 已存在，跳过创建`);
@@ -97,8 +97,9 @@ async function initializeUsers(db: Database<sqlite3.Database, sqlite3.Statement>
       // 默认用户设置
       const defaultSettings = getDefaultUserSettings();
 
-      // 🎭 插入用户数据（使用多角色字段）
+      // 🎭 插入用户数据（使用UUID和多角色字段）
       console.log(`  🔍 准备插入用户数据:`, {
+        id: userData.id,
         username: userData.username,
         email: userData.email,
         roles: userData.roles,
@@ -108,17 +109,17 @@ async function initializeUsers(db: Database<sqlite3.Database, sqlite3.Statement>
       
       await db.run(`
         INSERT INTO users (
-          username, email, password_hash, salt, roles, display_name, status, settings
+          id, username, email, password_hash, salt, roles, display_name, status
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `, [
+        userData.id,         // 🆔 使用UUID格式的ID
         userData.username,
         userData.email,
         passwordHash,
         salt,
-        userData.roles,  // 🎭 使用多角色字段
+        userData.roles,      // 🎭 使用多角色字段
         userData.displayName,
-        userData.status,
-        JSON.stringify(defaultSettings)
+        userData.status
       ]);
 
       console.log(`  ✓ 创建用户: ${userData.username} (${userData.roles})`);

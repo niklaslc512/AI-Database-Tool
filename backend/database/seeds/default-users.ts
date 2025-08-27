@@ -1,20 +1,32 @@
 import * as bcrypt from 'bcryptjs';
+import { randomUUID } from 'crypto';
 
 export interface DefaultUser {
+  id: string;        // 🆔 UUID字符串格式
   username: string;
   email: string;
   password: string;
-  roles: string;  // 🎭 多角色字符串，逗号分隔
+  roles: string;     // 🎭 多角色字符串，逗号分隔
   displayName: string;
   status: string;
 }
 
 /**
+ * 🔧 生成UUID
+ * @returns UUID字符串
+ */
+export function generateUUID(): string {
+  return randomUUID();
+}
+
+/**
  * 🎭 默认用户数据
  * 包含三种不同角色的用户：admin（全功能）、developer（开发者功能）、guest（只读功能）
+ * 使用固定的UUID以确保数据一致性
  */
 export const defaultUsers: DefaultUser[] = [
   {
+    id: '550e8400-e29b-41d4-a716-446655440001',  // 🆔 固定UUID
     username: 'admin',
     email: 'admin@ai-database.com',
     password: 'Admin@123456',
@@ -23,6 +35,7 @@ export const defaultUsers: DefaultUser[] = [
     status: 'active'
   },
   {
+    id: '550e8400-e29b-41d4-a716-446655440002',  // 🆔 固定UUID
     username: 'developer',
     email: 'developer@ai-database.com',
     password: 'Dev@123456',
@@ -31,6 +44,7 @@ export const defaultUsers: DefaultUser[] = [
     status: 'active'
   },
   {
+    id: '550e8400-e29b-41d4-a716-446655440003',  // 🆔 固定UUID
     username: 'guest',
     email: 'guest@ai-database.com',
     password: 'Guest@123456',
@@ -39,6 +53,7 @@ export const defaultUsers: DefaultUser[] = [
     status: 'active'
   },
   {
+    id: '550e8400-e29b-41d4-a716-446655440004',  // 🆔 固定UUID
     username: 'demo_admin',
     email: 'demo.admin@ai-database.com',
     password: 'DemoAdmin@123',
@@ -47,6 +62,7 @@ export const defaultUsers: DefaultUser[] = [
     status: 'active'
   },
   {
+    id: '550e8400-e29b-41d4-a716-446655440005',  // 🆔 固定UUID
     username: 'demo_dev',
     email: 'demo.dev@ai-database.com',
     password: 'DemoDev@123',

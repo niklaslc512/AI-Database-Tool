@@ -4,6 +4,7 @@ import { createApiKeyRoutes } from './apiKeys';
 import { createAuthRoutes } from './auth';
 import { createConfigRoutes } from './configs';
 import { createConnectionRoutes } from './connections';
+import { createDatabaseRoutes } from './db';
 
 export function createRoutes(): Router {
   const router = Router();
@@ -72,6 +73,10 @@ export function createRoutes(): Router {
   console.log('🔗 注册数据库连接路由...');
   // 数据库连接管理路由
   router.use('/connections', createConnectionRoutes());
+
+  console.log('🗄️ 注册数据库操作路由...');
+  // 数据库操作路由
+  router.use('/db', createDatabaseRoutes());
 
   // TODO: 在这里添加其他路由模块
   // router.use('/query', queryRoutes);

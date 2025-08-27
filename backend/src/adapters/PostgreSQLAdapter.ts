@@ -198,32 +198,32 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     }
 
     const startTime = Date.now();
+    let client;
     
     try {
-      const client = await this.pool.connect();
+      client = await this.pool.connect();
       
-      try {
-        const result = await client.query(sql, params || []);
-        const executionTime = Date.now() - startTime;
+      const result = await client.query(sql, params || []);
+      const executionTime = Date.now() - startTime;
 
-        client.release();
+      // 处理查询结果
+      const queryResult: QueryResult = {
+        rows: result.rows,
+        rowCount: result.rowCount || 0,
+        fields: this.mapFields(result.fields),
+        executionTime
+      };
 
-        // 处理查询结果
-        const queryResult: QueryResult = {
-          rows: result.rows,
-          rowCount: result.rowCount || 0,
-          fields: this.mapFields(result.fields),
-          executionTime
-        };
-
-        logger.info(`PostgreSQL查询执行完成: ${executionTime}ms`);
-        return queryResult;
-      } finally {
-        client.release();
-      }
+      logger.info(`PostgreSQL查询执行完成: ${executionTime}ms`);
+      return queryResult;
     } catch (error) {
       logger.error('PostgreSQL查询执行失败:', error);
       throw error;
+    } finally {
+      // 确保客户端只释放一次
+      if (client) {
+        client.release();
+      }
     }
   }
 
@@ -232,9 +232,10 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       throw new Error('数据库连接池未初始化');
     }
 
-    const client = await this.pool.connect();
+    let client;
     
     try {
+      client = await this.pool.connect();
       await client.query('BEGIN');
       
       const results: QueryResult[] = [];
@@ -253,14 +254,22 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       }
       
       await client.query('COMMIT');
-      client.release();
-      
       return results;
     } catch (error) {
-      await client.query('ROLLBACK');
-      client.release();
+      if (client) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (rollbackError) {
+          logger.error('PostgreSQL事务回滚失败:', rollbackError);
+        }
+      }
       logger.error('PostgreSQL事务执行失败:', error);
       throw error;
+    } finally {
+      // 确保客户端只释放一次
+      if (client) {
+        client.release();
+      }
     }
   }
 

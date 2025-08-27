@@ -10,36 +10,9 @@ export function createUserRoutes(): Router {
   const userService = UserService.getInstance();
   const authMiddleware = createAuthMiddleware();
 
-  // 用户登录
-  router.post('/auth/login', async (req, res) => {
-    try {
-      const { username, password, rememberMe } = req.body;
-      
-      if (!username || !password) {
-        throw new AppError('用户名和密码不能为空', 400, true, req.url);
-      }
+  // 注意：用户登录功能已迁移到 /routes/auth.ts
 
-      const clientInfo: { ip?: string; userAgent?: string } = {};
-      
-      const ip = req.ip || req.connection.remoteAddress;
-      const userAgent = req.get('User-Agent');
-      
-      if (ip) clientInfo.ip = ip;
-      if (userAgent) clientInfo.userAgent = userAgent;
-
-      const result = await userService.login(
-        { username, password, rememberMe },
-        clientInfo
-      );
-
-      res.json(result);
-
-    } catch (error: any) {
-      throw new AppError(error.message || '登录失败', 401, true, req.url);
-    }
-  });
-
-  // 获取当前用户信息
+  // 🔍 获取当前用户信息
   router.get('/me', authMiddleware.authenticate, async (req, res) => {
     try {
       const user = await userService.getUserById(req.user!.id);
@@ -49,7 +22,7 @@ export function createUserRoutes(): Router {
     }
   });
 
-  // 更新当前用户信息
+  // ✏️ 更新当前用户信息
   router.put('/me', authMiddleware.authenticate, async (req, res) => {
     try {
       const { displayName, email, settings } = req.body;
@@ -66,7 +39,7 @@ export function createUserRoutes(): Router {
     }
   });
 
-  // 修改密码
+  // 🔑 修改密码
   router.put('/me/password', authMiddleware.authenticate, async (req, res) => {
     try {
       const { oldPassword, newPassword } = req.body;

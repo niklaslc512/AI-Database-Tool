@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { AuthorizationService } from '../services/AuthorizationService';
+import { UserService } from '../services/UserService';
 import { createAuthMiddleware } from '../middleware/auth';
 import { AppError } from '../types';
 import { logger } from '../utils/logger';
@@ -7,7 +8,39 @@ import { logger } from '../utils/logger';
 export function createAuthRoutes(): Router {
   const router = Router();
   const authorizationService = AuthorizationService.getInstance();
+  const userService = UserService.getInstance();
   const authMiddleware = createAuthMiddleware();
+
+  // 🔐 用户登录
+  router.post('/login', async (req, res) => {
+    try {
+      const { username, password, rememberMe } = req.body;
+      
+      if (!username || !password) {
+        throw new AppError('用户名和密码不能为空', 400, true, req.url);
+      }
+
+      const clientInfo: { ip?: string; userAgent?: string } = {};
+      
+      const ip = req.ip || req.connection.remoteAddress;
+      const userAgent = req.get('User-Agent');
+      
+      if (ip) clientInfo.ip = ip;
+      if (userAgent) clientInfo.userAgent = userAgent;
+
+      const result = await userService.login(
+        { username, password, rememberMe },
+        clientInfo
+      );
+
+      res.json(result);
+
+    } catch (error: any) {
+      throw new AppError(error.message || '登录失败', 401, true, req.url);
+    }
+  });
+
+  // 注意：/me 相关接口已移回 users.ts 路由
 
   // 创建外部授权令牌
   router.post('/external/create', 

@@ -89,7 +89,7 @@
     </aside>
 
     <!-- 主内容区域 -->
-    <div :class="['lg:ml-64 transition-all duration-300 ease-in-out']">
+    <div :class="['lg:ml-64 transition-all duration-300 ease-in-out h-screen flex flex-col']">
       <!-- 顶部导航栏 -->
       <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-4 h-16">
         <div class="flex items-center justify-between">
@@ -140,7 +140,7 @@
       </header>
 
       <!-- 页面内容 -->
-      <main class="p-6">
+      <main class="p-6 flex-1 overflow-auto">
         <router-view />
       </main>
     </div>

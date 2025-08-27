@@ -1,90 +1,86 @@
 <template>
-  <div class="min-h-screen bg-base-100 p-6">
-    <!-- 页面标题 -->
-    <div class="flex items-center justify-between mb-8">
-      <div>
-        <h1 class="text-3xl font-bold text-base-content flex items-center gap-3">
-          <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-3.586l6.879-6.879A6 6 0 0119 9z" />
-            </svg>
-          </div>
-          API 密钥管理
-        </h1>
-        <p class="text-base-content/70 mt-2">
-          管理您的API访问密钥，用于外部应用程序集成和数据库访问控制
-        </p>
+  <div class=" flex flex-col bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 overflow-hidden">
+    <!-- 📊 页面头部 -->
+    <div class="bg-white/80 backdrop-blur-sm border-b border-gray-200 flex-shrink-0 px-6 py-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent flex items-center gap-3">
+            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-3.586l6.879-6.879A6 6 0 0119 9z" />
+              </svg>
+            </div>
+            API 密钥管理
+          </h1>
+          <p class="text-gray-600 mt-2">
+            管理您的API访问密钥，用于外部应用程序集成和数据库访问控制
+          </p>
+        </div>
+        <button 
+          @click="showCreateModal = true" 
+          class="btn bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+        >
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          创建密钥
+        </button>
       </div>
-      <button 
-        @click="showCreateModal = true" 
-        class="btn btn-primary gap-2"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
-        创建密钥
-      </button>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-      <div class="card bg-base-200 shadow-sm">
-        <div class="card-body p-6">
+    <!-- 统计卡片区域 -->
+    <div class="bg-white/70 backdrop-blur-sm border-b border-gray-200 px-6 py-4 shadow-sm flex-shrink-0">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-base-content/70 text-sm font-medium">总密钥数</p>
-              <p class="text-2xl font-bold text-base-content">{{ apiKeys.length }}</p>
+              <p class="text-gray-600 text-sm font-medium">总密钥数</p>
+              <p class="text-2xl font-bold text-gray-900">{{ apiKeys.length }}</p>
             </div>
-            <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-3.586l6.879-6.879A6 6 0 0119 9z" />
               </svg>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="card bg-base-200 shadow-sm">
-        <div class="card-body p-6">
+        <div class="bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-base-content/70 text-sm font-medium">活跃密钥</p>
-              <p class="text-2xl font-bold text-success">{{ activeKeysCount }}</p>
+              <p class="text-gray-600 text-sm font-medium">活跃密钥</p>
+              <p class="text-2xl font-bold text-green-600">{{ activeKeysCount }}</p>
             </div>
-            <div class="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="card bg-base-200 shadow-sm">
-        <div class="card-body p-6">
+        <div class="bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-base-content/70 text-sm font-medium">过期密钥</p>
-              <p class="text-2xl font-bold text-warning">{{ expiredKeysCount }}</p>
+              <p class="text-gray-600 text-sm font-medium">过期密钥</p>
+              <p class="text-2xl font-bold text-yellow-600">{{ expiredKeysCount }}</p>
             </div>
-            <div class="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="card bg-base-200 shadow-sm">
-        <div class="card-body p-6">
+        <div class="bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-base-content/70 text-sm font-medium">总使用次数</p>
-              <p class="text-2xl font-bold text-info">{{ totalUsage }}</p>
+              <p class="text-gray-600 text-sm font-medium">总使用次数</p>
+              <p class="text-2xl font-bold text-purple-600">{{ totalUsage }}</p>
             </div>
-            <div class="w-12 h-12 bg-info/10 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
@@ -93,24 +89,30 @@
       </div>
     </div>
 
-    <!-- API密钥列表 -->
-    <div class="card bg-base-200 shadow-sm">
-      <div class="card-body p-0">
+    <!-- 主要内容区域 -->
+    <div class="flex-1 flex flex-col overflow-hidden min-h-0">
+      <div class="bg-white/70 backdrop-blur-sm flex flex-col shadow-lg overflow-hidden min-h-0 rounded-xl border border-white/20">
         <!-- 表头 -->
-        <div class="flex items-center justify-between p-6 border-b border-base-300">
-          <h2 class="text-xl font-semibold text-base-content">API密钥列表</h2>
+        <div class="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+          <h2 class="text-xl font-semibold text-gray-900">API密钥列表</h2>
           <div class="flex items-center gap-4">
             <!-- 搜索框 -->
-            <div class="form-control">
+            <div class="relative">
+              <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
               <input 
                 v-model="searchQuery" 
                 type="text" 
                 placeholder="搜索密钥名称..." 
-                class="input input-bordered input-sm w-64"
+                class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
               />
             </div>
             <!-- 筛选器 -->
-            <select v-model="statusFilter" class="select select-bordered select-sm">
+            <select 
+              v-model="statusFilter" 
+              class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+            >
               <option value="">全部状态</option>
               <option value="active">活跃</option>
               <option value="inactive">禁用</option>
@@ -120,25 +122,27 @@
         </div>
 
         <!-- 表格内容 -->
-        <div v-if="loading" class="flex items-center justify-center py-12">
-          <span class="loading loading-spinner loading-lg text-primary"></span>
-        </div>
+        <div class="flex-1 overflow-y-auto min-h-0 p-6">
+          <div v-if="loading" class="flex items-center justify-center py-12">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+          </div>
 
-        <div v-else-if="filteredApiKeys.length === 0" class="flex flex-col items-center justify-center py-12">
-          <div class="w-16 h-16 bg-base-300 rounded-full flex items-center justify-center mb-4">
-            <svg class="w-8 h-8 text-base-content/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div v-else-if="filteredApiKeys.length === 0" class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-3.586l6.879-6.879A6 6 0 0119 9z" />
             </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">暂无API密钥</h3>
+            <p class="text-gray-600 mb-6">创建您的第一个API密钥来开始使用</p>
+            <button 
+              @click="showCreateModal = true" 
+              class="btn bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white border-0"
+            >
+              创建API密钥
+            </button>
           </div>
-          <h3 class="text-lg font-medium text-base-content mb-2">暂无API密钥</h3>
-          <p class="text-base-content/70 mb-4">创建您的第一个API密钥来开始使用</p>
-          <button @click="showCreateModal = true" class="btn btn-primary">
-            创建API密钥
-          </button>
-        </div>
 
-        <div v-else class="overflow-x-auto">
-          <table class="table table-zebra">
+          <div v-else class="overflow-x-auto">
+            <table class="table table-zebra">
             <thead>
               <tr>
                 <th class="font-semibold text-base-content">密钥信息</th>
@@ -268,10 +272,12 @@
                 </td>
               </tr>
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       </div>
     </div>
+  </div>
 
     <!-- 创建/编辑API密钥模态框 -->
     <div v-if="showCreateModal" class="modal modal-open">
@@ -400,7 +406,6 @@
         </div>
       </div>
     </div>
-  </div>
 </template>
 
 <script setup lang="ts">

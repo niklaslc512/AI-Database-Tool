@@ -409,8 +409,8 @@ export class AuthorizationService {
    */
   private mapDbTokenToAuthToken(dbToken: any): AuthorizationToken {
     return {
-      id: dbToken.id?.toString(),
-      userId: dbToken.user_id?.toString(),
+      id: dbToken.id,  // 🔧 UUID字符串，无需转换
+      userId: dbToken.user_id,  // 🔧 UUID字符串，无需转换
       token: dbToken.token,
       tokenType: dbToken.token_type,
       scope: dbToken.scope ? JSON.parse(dbToken.scope) : undefined,
@@ -426,7 +426,7 @@ export class AuthorizationService {
    */
   private mapDbUserToUser(dbUser: any): User {
     return {
-      id: dbUser.id?.toString(),
+      id: dbUser.id,  // 🔧 UUID字符串，无需转换
       username: dbUser.username,
       email: dbUser.email,
       roles: dbUser.roles || 'guest',  // 🎭 使用多角色字段

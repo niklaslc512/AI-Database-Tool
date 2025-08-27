@@ -85,11 +85,11 @@ export class ConfigService extends BaseService {
       const params: any[] = [];
 
       if (categories && categories.length > 0) {
-        sql += ` AND category IN (${categories.map(() => '?').join(',')})`;
+        sql += ` AND config_type IN (${categories.map(() => '?').join(',')})`;
         params.push(...categories);
       }
 
-      sql += ' ORDER BY category, key';
+      sql += ' ORDER BY config_type, config_key';
 
       const configs = await this.executeAll<Config>(sql, params);
       
@@ -97,13 +97,13 @@ export class ConfigService extends BaseService {
 
       // 🔄 更新配置缓存和环境变量
       for (const config of configs) {
-        const parsedValue = this.parseConfigValue(config.value, config.type);
-        this.configCache.set(config.key, parsedValue);
+        const parsedValue = this.parseConfigValue(config.config_value || '', config.config_type);
+        this.configCache.set(config.config_key, parsedValue);
 
         // 🌍 覆盖环境变量（如果启用）
-        if (overrideEnv) {
-          const envKey = config.key.toUpperCase().replace(/\./g, '_');
-          process.env[envKey] = config.value;
+        if (overrideEnv && config.config_value) {
+          const envKey = config.config_key.toUpperCase().replace(/\./g, '_');
+          process.env[envKey] = config.config_value;
           logger.debug(`🌍 环境变量 ${envKey} 已更新`);
         }
       }
@@ -146,12 +146,12 @@ export class ConfigService extends BaseService {
       // 📋 获取配置列表
       const selectFields = includeValues 
         ? '*' 
-        : 'id, key, type, description, category, created_at, updated_at';
+        : 'id, config_key, config_type, description, category, created_at, updated_at';
       
       const dataSql = `
         SELECT ${selectFields} FROM configs 
         ${whereClause} 
-        ORDER BY ${sortBy} ${sortOrder.toUpperCase()}, key ASC 
+        ORDER BY ${sortBy} ${sortOrder.toUpperCase()}, config_key ASC 
         LIMIT ? OFFSET ?
       `;
       
@@ -218,7 +218,7 @@ export class ConfigService extends BaseService {
 
       // 🔍 从数据库获取
       const config = await this.executeQuery<Config>(
-        'SELECT value, type FROM configs WHERE key = ?',
+        'SELECT config_value, config_type FROM configs WHERE config_key = ?',
         [key]
       );
 
@@ -226,7 +226,7 @@ export class ConfigService extends BaseService {
         return null;
       }
 
-      const parsedValue = this.parseConfigValue(config.value, config.type);
+      const parsedValue = this.parseConfigValue(config.config_value || '', config.config_type);
       this.configCache.set(key, parsedValue);
       
       return parsedValue as T;
@@ -242,25 +242,28 @@ export class ConfigService extends BaseService {
   async createConfig(request: CreateConfigRequest, userId?: string): Promise<Config> {
     try {
       const {
-        key,
-        value,
-        type = 'string',
+        config_key,
+        config_value,
+        config_type = 'user',
         description,
-        category = 'general'
+        user_id,
+        is_encrypted = false
       } = request;
 
       // 🔍 检查配置是否已存在
       const existing = await this.executeQuery<Config>(
-        'SELECT id FROM configs WHERE key = ?',
-        [key]
+        'SELECT id FROM configs WHERE config_key = ?',
+        [config_key]
       );
 
       if (existing) {
-        throw new AppError(`配置键 '${key}' 已存在`, 409);
+        throw new AppError(`配置键 '${config_key}' 已存在`, 409);
       }
 
       // ✅ 验证配置值
-      this.validateConfigValue(value, type);
+      if (config_value) {
+        this.validateConfigValue(config_value, config_type);
+      }
 
       const id = uuidv4();
       const now = new Date().toISOString();
@@ -268,34 +271,36 @@ export class ConfigService extends BaseService {
       // 💾 插入数据库
       await this.executeRun(
         `INSERT INTO configs (
-          id, key, value, type, description, category,
+          id, user_id, config_key, config_value, config_type, description, is_encrypted,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          id, key, value, type, description, category,
+          id, user_id || userId || null, config_key, config_value || null, config_type, description || null, is_encrypted,
           now, now
         ]
       );
 
       // 🔄 更新缓存
-      const parsedValue = this.parseConfigValue(value, type);
-      this.configCache.set(key, parsedValue);
+      if (config_value) {
+        const parsedValue = this.parseConfigValue(config_value, config_type);
+        this.configCache.set(config_key, parsedValue);
 
-      // 🌍 更新环境变量
-      const envKey = key.toUpperCase().replace(/\./g, '_');
-      process.env[envKey] = value;
+        // 🌍 更新环境变量
+        const envKey = config_key.toUpperCase().replace(/\./g, '_');
+        process.env[envKey] = config_value;
+      }
 
       // 📢 发送变更事件
-      this.emitConfigChange({
-        key,
-        oldValue: '',
-        newValue: value,
-        type,
-        timestamp: new Date(),
-        userId
-      });
+        this.emitConfigChange({
+          config_key,
+          oldValue: '',
+          newValue: config_value || '',
+          config_type,
+          timestamp: new Date(),
+          userId: userId || user_id
+        });
 
-      logger.info(`✅ 创建配置成功: ${key}`);
+      logger.info(`✅ 创建配置成功: ${config_key}`);
       
       return this.getConfigById(id);
     } catch (error) {
@@ -327,31 +332,31 @@ export class ConfigService extends BaseService {
 
 
       const {
-        value,
+        config_value,
         description,
-        category
+        config_type
       } = request;
 
       // ✅ 验证新的配置值
-      if (value !== undefined) {
-        this.validateConfigValue(value, existing.type);
+      if (config_value !== undefined) {
+        this.validateConfigValue(config_value, config_type || existing.config_type);
       }
 
       // 🔄 构建更新语句
       const updates: string[] = [];
       const params: any[] = [];
 
-      if (value !== undefined) {
-        updates.push('value = ?');
-        params.push(value);
+      if (config_value !== undefined) {
+        updates.push('config_value = ?');
+        params.push(config_value);
       }
       if (description !== undefined) {
         updates.push('description = ?');
         params.push(description);
       }
-      if (category !== undefined) {
-        updates.push('category = ?');
-        params.push(category);
+      if (config_type !== undefined) {
+        updates.push('config_type = ?');
+        params.push(config_type);
       }
 
 
@@ -370,26 +375,26 @@ export class ConfigService extends BaseService {
       );
 
       // 🔄 更新缓存和环境变量
-      if (value !== undefined) {
-        const parsedValue = this.parseConfigValue(value, existing.type);
-        this.configCache.set(existing.key, parsedValue);
+      if (config_value !== undefined) {
+        const parsedValue = this.parseConfigValue(config_value, config_type || existing.config_type);
+        this.configCache.set(existing.config_key, parsedValue);
 
         // 🌍 更新环境变量
-        const envKey = existing.key.toUpperCase().replace(/\./g, '_');
-        process.env[envKey] = value;
+        const envKey = existing.config_key.toUpperCase().replace(/\./g, '_');
+        process.env[envKey] = config_value;
 
         // 📢 发送变更事件
         this.emitConfigChange({
-          key: existing.key,
-          oldValue: existing.value,
-          newValue: value,
-          type: existing.type,
+          config_key: existing.config_key,
+          oldValue: existing.config_value || '',
+          newValue: config_value,
+          config_type: existing.config_type,
           timestamp: new Date(),
           userId
         });
       }
 
-      logger.info(`✅ 更新配置成功: ${existing.key}`);
+      logger.info(`✅ 更新配置成功: ${existing.config_key}`);
       
       return this.getConfigById(id);
     } catch (error) {
@@ -420,13 +425,13 @@ export class ConfigService extends BaseService {
       await this.executeRun('DELETE FROM configs WHERE id = ?', [id]);
 
       // 🔄 清除缓存
-      this.configCache.delete(config.key);
+      this.configCache.delete(config.config_key);
 
       // 🌍 清除环境变量
-      const envKey = config.key.toUpperCase().replace(/\./g, '_');
+      const envKey = config.config_key.toUpperCase().replace(/\./g, '_');
       delete process.env[envKey];
 
-      logger.info(`✅ 删除配置成功: ${config.key}`);
+      logger.info(`✅ 删除配置成功: ${config.config_key}`);
       
     } catch (error) {
       if (error instanceof AppError) throw error;
@@ -472,7 +477,7 @@ export class ConfigService extends BaseService {
   /**
    * 🔍 解析配置值
    */
-  private parseConfigValue(value: string, type: ConfigType): any {
+  private parseConfigValue(value: string, type: string): any {
     try {
       switch (type) {
         case 'string':
@@ -501,7 +506,7 @@ export class ConfigService extends BaseService {
   /**
    * ✅ 验证配置值
    */
-  private validateConfigValue(value: string, type: ConfigType): void {
+  private validateConfigValue(value: string, type: string): void {
     // 🔍 基本类型验证
     try {
       this.parseConfigValue(value, type);
@@ -516,6 +521,6 @@ export class ConfigService extends BaseService {
    */
   private emitConfigChange(event: ConfigChangeEvent): void {
     this.eventEmitter.emit('configChanged', event);
-    logger.info(`📢 配置变更事件: ${event.key} = ${event.newValue}`);
+    logger.info(`📢 配置变更事件: ${event.config_key} = ${event.newValue}`);
   }
 }

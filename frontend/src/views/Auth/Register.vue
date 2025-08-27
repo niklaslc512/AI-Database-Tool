@@ -15,9 +15,7 @@
 
       <div class="card">
         <div class="card-body text-center py-12">
-          <el-icon class="w-16 h-16 text-gray-400 mx-auto mb-4">
-            <UserFilled />
-          </el-icon>
+          <UserFilled class="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
             用户注册
           </h3>
@@ -25,7 +23,7 @@
             此功能正在开发中，敬请期待
           </p>
           <router-link to="/login">
-            <el-button type="primary">返回登录</el-button>
+            <button class="btn btn-primary">返回登录</button>
           </router-link>
         </div>
       </div>

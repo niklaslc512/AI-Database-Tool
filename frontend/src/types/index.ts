@@ -559,33 +559,36 @@ export type ConfigCategory = 'general' | 'database' | 'ai' | 'security' | 'syste
  */
 export interface SystemConfig {
   id: string;
-  key: string;
-  value: string;
-  type: ConfigType;
-  category: ConfigCategory;
+  user_id?: string;
+  config_key: string;
+  config_value?: string;
+  config_type: string;
   description?: string;
-  createdAt: string;
-  updatedAt: string;
+  is_encrypted: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
  * 🔧 创建系统配置请求
  */
 export interface CreateConfigRequest {
-  key: string;
-  value: string;
-  type: ConfigType;
-  category: ConfigCategory;
+  user_id?: string;
+  config_key: string;
+  config_value?: string;
+  config_type?: string;
   description?: string;
+  is_encrypted?: boolean;
 }
 
 /**
  * 🔧 更新系统配置请求
  */
 export interface UpdateConfigRequest {
-  value?: string;
+  config_value?: string;
+  config_type?: string;
   description?: string;
-  category?: ConfigCategory;
+  is_encrypted?: boolean;
 }
 
 /**

@@ -1,103 +1,98 @@
 <template>
-  <div class="space-y-8">
+  <div class=" flex flex-col bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 overflow-hidden">
     <!-- 📊 页面头部 -->
-    <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6">
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div class="bg-white/80 backdrop-blur-sm border-b border-gray-200 flex-shrink-0 px-6 py-4">
+      <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-            <User class="w-6 h-6" />
+          <h1 class="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent flex items-center gap-3">
+            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <User class="w-6 h-6 text-green-600" />
+            </div>
             用户管理
           </h1>
-          <p class="text-lg text-gray-600 dark:text-gray-400 mt-2">管理系统用户账户、角色权限和访问控制</p>
+          <p class="text-gray-600 mt-2">管理系统用户账户、角色权限和访问控制</p>
         </div>
-        <div>
-          <!-- 🛡️ 使用权限指令控制按钮显示 -->
-          <button 
-            class="btn btn-primary border-2 border-green-600 hover:border-green-700 shadow-lg hover:shadow-xl transition-all duration-200"
-            @click="showCreateDialog = true"
-            v-permission="{ permission: 'user:create' }"
-          >
-            <Plus class="w-4 h-4 mr-2" />
-            新建用户
-          </button>
-        </div>
+        <button 
+          class="btn bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+          @click="showCreateDialog = true"
+          v-permission="{ permission: 'user:create' }"
+        >
+          <Plus class="w-4 h-4 mr-2" />
+          新建用户
+        </button>
       </div>
     </div>
 
-    <!-- 🔍 搜索和筛选 -->
-    <div class="search-section">
-      <div class="card bg-base-100 shadow-lg hover:shadow-xl transition-shadow duration-300">
-        <div class="card-body">
-          <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <div class="md:col-span-2">
-              <div class="form-control">
-                <label class="input input-bordered flex items-center gap-2 border-green-300 focus-within:border-green-500">
-                  <Search class="w-4 h-4 text-green-600" />
-                  <input
-                    v-model="searchForm.keyword"
-                    type="text"
-                    placeholder="搜索用户名或邮箱"
-                    class="grow"
-                    @input="handleSearch"
-                  />
-                </label>
-              </div>
-            </div>
-            <div>
-              <select
-                v-model="searchForm.role"
-                class="select select-bordered w-full border-green-300 focus:border-green-500"
-                @change="handleSearch"
-              >
-                <option value="">角色筛选</option>
-                <option value="admin">管理员</option>
-                <option value="developer">开发者</option>
-                <option value="guest">访客</option>
-              </select>
-            </div>
-            <div>
-              <select
-                v-model="searchForm.status"
-                class="select select-bordered w-full border-green-300 focus:border-green-500"
-                @change="handleSearch"
-              >
-                <option value="">状态筛选</option>
-                <option value="active">活跃</option>
-                <option value="inactive">非活跃</option>
-                <option value="locked">锁定</option>
-              </select>
-            </div>
-            <div class="md:col-span-2 flex gap-2">
-              <button class="btn btn-outline btn-success border-2 hover:bg-green-50" @click="resetSearch">重置</button>
-              <button class="btn btn-primary border-2 border-green-600 hover:border-green-700" @click="handleSearch">搜索</button>
-            </div>
+    <!-- 🔍 搜索和筛选区域 -->
+    <div class="bg-white/70 backdrop-blur-sm border-b border-gray-200 px-6 py-4 shadow-sm flex-shrink-0">
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div class="md:col-span-2">
+          <div class="relative">
+            <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              v-model="searchForm.keyword"
+              type="text"
+              placeholder="搜索用户名或邮箱"
+              class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+              @input="handleSearch"
+            />
           </div>
         </div>
+        <div>
+          <select
+            v-model="searchForm.role"
+            class="px-3 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+            @change="handleSearch"
+          >
+            <option value="">角色筛选</option>
+            <option value="admin">管理员</option>
+            <option value="developer">开发者</option>
+            <option value="guest">访客</option>
+          </select>
+        </div>
+        <div>
+          <select
+            v-model="searchForm.status"
+            class="px-3 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+            @change="handleSearch"
+          >
+            <option value="">状态筛选</option>
+            <option value="active">活跃</option>
+            <option value="inactive">非活跃</option>
+            <option value="locked">锁定</option>
+          </select>
+        </div>
+        <div class="md:col-span-2 flex gap-2">
+          <button class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200" @click="resetSearch">重置</button>
+          <button class="px-4 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white rounded-lg transition-all duration-200" @click="handleSearch">搜索</button>
+        </div>
       </div>
     </div>
 
-    <!-- 📋 用户列表 -->
-    <div class="table-section">
-      <div class="card bg-base-100 shadow-lg">
-        <div class="card-body">
+    <!-- 📋 主要内容区域 -->
+    <div class="flex-1 flex flex-col overflow-hidden min-h-0">
+      <div class="bg-white/70 backdrop-blur-sm flex flex-col shadow-lg overflow-hidden min-h-0">
+        <!-- 表格内容 -->
+        <div class="flex-1 overflow-y-auto min-h-0 p-6">
           <div class="overflow-x-auto">
-            <table class="table table-zebra w-full">
-              <thead>
-                 <tr class="bg-green-50">
-                   <th class="text-green-800 font-semibold">ID</th>
-                   <th class="text-green-800 font-semibold">用户名</th>
-                   <th class="text-green-800 font-semibold">邮箱</th>
-                   <th class="text-green-800 font-semibold">角色</th>
-                   <th class="text-green-800 font-semibold">状态</th>
-                   <th class="text-green-800 font-semibold">最后登录</th>
-                   <th class="text-green-800 font-semibold">创建时间</th>
-                   <th class="text-green-800 font-semibold">操作</th>
-                 </tr>
-                </thead>
-              <tbody>
+            <table class="w-full">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr class="text-gray-700">
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户名</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">邮箱</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">角色</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">最后登录</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
                 <tr v-if="loading">
                   <td colspan="8" class="text-center py-8">
-                    <span class="loading loading-spinner loading-lg"></span>
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-2"></div>
+                    <span class="text-gray-600">正在加载用户数据...</span>
                   </td>
                 </tr>
                 <tr v-else-if="userList.length === 0">
@@ -105,7 +100,7 @@
                     暂无用户数据
                   </td>
                 </tr>
-                <tr v-else v-for="user in userList" :key="user.id" class="hover:bg-green-50">
+                <tr v-else v-for="user in userList" :key="user.id" class="hover:bg-gray-50 transition-colors duration-200">
                    <td class="font-mono text-green-700 font-semibold">#{{ user.id }}</td>
                   <td>
                     <div class="flex items-center space-x-3">
@@ -492,7 +487,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { User, Plus, Search } from '@/utils/iconMapping'
 import { useAuthStore } from '@/stores/auth'
 import { userApi } from '@/utils/api'
-import type { User as UserType, UserRole, UserStatus, PaginatedResult } from '@/types'
+import type { User as UserType, UserRole, UserStatus } from '@/types'
 
 // 🔔 原生消息提示函数
 const showMessage = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
@@ -563,7 +558,6 @@ const loading = ref(false)
 const creating = ref(false)
 const updating = ref(false)
 const userList = ref<UserType[]>([])
-const selectedUsers = ref<UserType[]>([])
 
 // 🔍 搜索表单
 const searchForm = reactive({
@@ -590,24 +584,6 @@ const createForm = reactive({
   roles: [] as UserRole[]
 })
 
-const createRules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
-  ],
-  email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度至少 6 个字符', trigger: 'blur' }
-  ],
-  roles: [
-    { required: true, message: '请选择至少一个角色', trigger: 'change' }
-  ]
-}
-
 // ✏️ 编辑用户表单
 const showEditDialog = ref(false)
 const editFormRef = ref()
@@ -619,16 +595,6 @@ const editForm = reactive({
   roles: [] as UserRole[],
   status: 'active' as UserStatus
 })
-
-const editRules = {
-  email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
-  ],
-  roles: [
-    { required: true, message: '请选择至少一个角色', trigger: 'change' }
-  ]
-}
 
 // 🔧 工具函数
 const parseRoles = (roleString: string): UserRole[] => {
@@ -645,15 +611,6 @@ const getRoleLabel = (role: UserRole): string => {
   return labels[role] || role
 }
 
-const getRoleTagType = (role: UserRole) => {
-  const types = {
-    admin: 'danger',
-    developer: 'primary',
-    guest: 'info'
-  }
-  return types[role] || 'info'
-}
-
 const getStatusLabel = (status: UserStatus): string => {
   const labels = {
     active: '活跃',
@@ -661,15 +618,6 @@ const getStatusLabel = (status: UserStatus): string => {
     locked: '锁定'
   }
   return labels[status] || status
-}
-
-const getStatusTagType = (status: UserStatus) => {
-  const types = {
-    active: 'success',
-    inactive: 'warning',
-    locked: 'danger'
-  }
-  return types[status] || 'info'
 }
 
 const formatDate = (dateString: string): string => {
@@ -723,11 +671,6 @@ const handlePageSizeChange = (size: number) => {
   pagination.limit = size
   pagination.page = 1
   loadUsers()
-}
-
-// 📋 表格处理
-const handleSelectionChange = (selection: UserType[]) => {
-  selectedUsers.value = selection
 }
 
 // 🆕 创建用户
@@ -860,12 +803,6 @@ onMounted(() => {
 <style scoped>
 /* 清理了所有Element Plus相关的样式，现在使用DaisyUI组件 */
 @reference "@/styles/main.css";
-
-/* 确保所有主要区域宽度一致，与Dashboard页面风格统一 */
-.search-section,
-.table-section {
-  /* 移除额外的padding，让所有区域宽度一致 */
-}
 
 /* 自定义滚动条样式 */
 .table-section ::-webkit-scrollbar {

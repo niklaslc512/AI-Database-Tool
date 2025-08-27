@@ -3,36 +3,44 @@
     <!-- 📊 页面头部 -->
     <div class="page-header">
       <h1 class="page-title">
-        <el-icon class="title-icon"><Lock /></el-icon>
+        <Lock class="title-icon" />
         权限测试页面
       </h1>
       <p class="page-description">测试不同角色和权限的访问控制效果</p>
     </div>
 
     <!-- 🔐 当前用户信息 -->
-    <el-card class="user-info-card" shadow="never">
-      <template #header>
-        <div class="card-header">
-          <span>👤 当前用户信息</span>
-        </div>
-      </template>
-      <div class="user-info">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="用户名">{{ user?.username || '未登录' }}</el-descriptions-item>
-          <el-descriptions-item label="邮箱">{{ user?.email || '未设置' }}</el-descriptions-item>
-          <el-descriptions-item label="角色">
-            <el-tag v-for="role in userRoles" :key="role" :type="getRoleTagType(role)" class="mr-1">
-              {{ getRoleLabel(role) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="认证状态">
-            <el-tag :type="isAuthenticated ? 'success' : 'danger'">
-              {{ isAuthenticated ? '✅ 已认证' : '❌ 未认证' }}
-            </el-tag>
-          </el-descriptions-item>
-        </el-descriptions>
+    <div class="card user-info-card">
+      <div class="card-header">
+        <h2 class="card-title">👤 当前用户信息</h2>
       </div>
-    </el-card>
+      <div class="card-body">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <span class="font-semibold">用户名:</span>
+            <span class="ml-2">{{ user?.username || '未登录' }}</span>
+          </div>
+          <div>
+            <span class="font-semibold">邮箱:</span>
+            <span class="ml-2">{{ user?.email || '未设置' }}</span>
+          </div>
+          <div>
+            <span class="font-semibold">角色:</span>
+            <div class="ml-2 flex gap-1">
+              <span v-for="role in userRoles" :key="role" :class="`badge ${getRoleBadgeClass(role)}`">
+                {{ getRoleLabel(role) }}
+              </span>
+            </div>
+          </div>
+          <div>
+            <span class="font-semibold">认证状态:</span>
+            <span :class="`ml-2 badge ${isAuthenticated() ? 'badge-success' : 'badge-error'}`">
+              {{ isAuthenticated() ? '✅ 已认证' : '❌ 未认证' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- 🛡️ 权限指令测试 -->
     <el-card class="test-card" shadow="never">
@@ -46,33 +54,33 @@
       <div class="test-section">
         <h3>🔐 基于权限的按钮控制</h3>
         <div class="button-group">
-          <el-button 
-            type="primary" 
+          <button 
+            class="btn btn-primary" 
             v-permission="{ permission: 'user:create' }"
           >
             创建用户 (需要 user:create 权限)
-          </el-button>
+          </button>
           
-          <el-button 
-            type="warning" 
+          <button 
+            class="btn btn-warning" 
             v-permission="{ permission: 'user:update' }"
           >
             编辑用户 (需要 user:update 权限)
-          </el-button>
+          </button>
           
-          <el-button 
-            type="danger" 
+          <button 
+            class="btn btn-error" 
             v-permission="{ permission: 'user:delete' }"
           >
             删除用户 (需要 user:delete 权限)
-          </el-button>
+          </button>
           
-          <el-button 
-            type="success" 
+          <button 
+            class="btn btn-success" 
             v-permission="{ permission: 'system:settings' }"
           >
             系统设置 (需要 system:settings 权限)
-          </el-button>
+          </button>
         </div>
       </div>
 
@@ -251,8 +259,8 @@ const authStore = useAuthStore()
 // 🔐 用户信息
 const user = computed(() => authStore.user)
 const userRoles = computed(() => {
-  if (!user.value?.role) return []
-  return authStore.parseRoles(user.value.role)
+  if (!user.value?.roles) return []
+  return authStore.parseRoles(user.value.roles)
 })
 
 // 🎭 角色标签类型
@@ -263,6 +271,16 @@ const getRoleTagType = (role: UserRole) => {
     guest: 'info'
   }
   return typeMap[role] || 'info'
+}
+
+// 🎨 角色徽章样式
+const getRoleBadgeClass = (role: UserRole) => {
+  const classMap = {
+    admin: 'badge-error',
+    developer: 'badge-warning',
+    guest: 'badge-info'
+  }
+  return classMap[role] || 'badge-info'
 }
 
 // 🏷️ 角色标签文本
@@ -329,7 +347,7 @@ const permissionTests = computed(() => [
 
 // 🔄 申请权限
 const requestPermission = () => {
-  ElMessage.info('权限申请功能暂未实现，请联系管理员')
+  alert('权限申请功能暂未实现，请联系管理员')
 }
 </script>
 
