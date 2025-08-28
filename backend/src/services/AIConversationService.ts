@@ -171,19 +171,35 @@ export class AIConversationService extends BaseService {
    */
   async updateMessageStatus(messageId: string, status: 'success' | 'error' | 'pending'): Promise<void> {
     try {
-      const sql = `UPDATE ai_conversations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-      await this.executeRun(sql, [status, messageId])
-
-      logger.info('🔄 消息状态更新成功', {
+      logger.info('🔄 开始更新消息状态', {
         messageId,
         status
       })
+
+      // 移除 updated_at 字段，因为 ai_conversations 表中没有这个字段
+      const sql = `UPDATE ai_conversations SET status = ? WHERE id = ?`
+      const result = await this.executeRun(sql, [status, messageId])
+
+      logger.info('🔄 消息状态更新成功', {
+        messageId,
+        status,
+        affectedRows: result.changes || 0
+      })
+
+      // 如果没有更新任何行，记录警告
+      if ((result.changes || 0) === 0) {
+        logger.warn('⚠️ 消息状态更新未影响任何行', {
+          messageId,
+          status
+        })
+      }
 
     } catch (error) {
       logger.error('❌ 更新消息状态失败', {
         error: error instanceof Error ? error.message : String(error),
         messageId,
-        status
+        status,
+        stack: error instanceof Error ? error.stack : undefined
       })
       throw error
     }

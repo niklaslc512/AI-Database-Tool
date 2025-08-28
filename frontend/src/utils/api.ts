@@ -13,7 +13,8 @@ import type {
   CreateApiKeyResponse,
   DatabaseConnection,
   TableInfo,
-  ColumnInfo
+  ColumnInfo,
+  SQLExecuteLog
 } from '@/types'
 // 🎨 使用原生浏览器API替代Element Plus消息组件
 import { ApiLogger } from './logger'
@@ -33,7 +34,16 @@ const apiLogger = new ApiLogger()
 // 创建axios实例
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
-  timeout: 30000,
+  timeout: 30000, // 默认30秒超时
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+
+// 创建专用于AI对话的axios实例，使用更长的超时时间
+const aiApiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
+  timeout: 120000, // 🤖 AI对话使用2分钟超时
   headers: {
     'Content-Type': 'application/json'
   }
@@ -385,6 +395,152 @@ export const apiKeyApi = {
   }>> =>
     api.get('/api-keys/available-permissions')
 }
+
+// 为AI专用客户端添加拦截器
+aiApiClient.interceptors.request.use(
+  (config) => {
+    // 记录请求开始
+    const startTime = apiLogger.logRequest(
+      config.method?.toUpperCase() || 'GET',
+      config.url || '',
+      config.data
+    )
+
+    // 添加认证token
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+
+    // 添加请求时间戳
+    config.metadata = { startTime }
+
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+aiApiClient.interceptors.response.use(
+  (response: AxiosResponse) => {
+    // 记录请求成功
+    apiLogger.logSuccess(
+      response.config.method?.toUpperCase() || 'GET',
+      response.config.url || '',
+      response.status,
+      response.config.metadata?.startTime || Date.now(),
+      response.data
+    )
+
+    return response
+  },
+  (error: AxiosError) => {
+    const response = error.response
+
+    // 记录请求失败
+    if (error.config?.metadata?.startTime) {
+      apiLogger.logError(
+        error.config.method?.toUpperCase() || 'GET',
+        error.config.url || '',
+        error.config.metadata.startTime,
+        error
+      )
+    }
+
+    if (response) {
+      const { status, data } = response
+
+      switch (status) {
+        case 401:
+          // 未授权，清除token并跳转到登录页
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+          }
+          break
+
+        case 403:
+          console.error('没有权限执行此操作')
+          break
+
+        case 404:
+          console.error('请求的资源不存在')
+          break
+
+        case 429:
+          console.error('请求过于频繁，请稍后再试')
+          break
+
+        case 500:
+          console.error('服务器内部错误，请稍后再试')
+          break
+
+        default:
+          const message = (data as any)?.message || '请求失败'
+          console.error(message)
+      }
+    } else if (error.code === 'ECONNABORTED') {
+      console.error('🤖 AI对话请求超时，请稍后重试')
+    } else {
+      console.error('网络错误，请检查网络连接')
+    }
+
+    return Promise.reject(error)
+  }
+)
+
+/**
+ * 🤖 AI对话相关API
+ */
+export const aiApi = {
+  // 发送AI对话消息（使用专用的长超时客户端）
+  chat: (dbId: string, data: { message: string; conversation_id?: string }): Promise<{
+    conversation_id: string;
+    sql: string;
+    reply: string;
+    response_time: number;
+  }> =>
+    aiApiClient.post(`/db/${dbId}/chat`, data).then(res => res.data),
+  
+  // 获取对话历史
+  getConversationHistory: (conversationId: string, params?: { limit?: number; before_message_id?: string }): Promise<{
+    conversation_id: string;
+    messages: any[];
+    total: number;
+  }> => 
+    api.get(`/ai/conversations/${conversationId}/history`, params)
+};
+
+/**
+ * 🗄️ SQL查询执行相关API
+ */
+export const sqlApi = {
+  // 执行SQL查询
+  executeQuery: (dbId: string, data: { sql: string; conversation_id?: string }): Promise<{
+    success: boolean;
+    data: any[];
+    rows_affected: number;
+    execution_time: number;
+    columns: any[];
+  }> => 
+    api.post(`/db/${dbId}/query`, data),
+  
+  // 获取SQL执行日志
+  getExecuteLogs: (params?: {
+    database_connection_id?: string;
+    conversation_id?: string;
+    status?: 'success' | 'error';
+    limit?: number;
+    offset?: number;
+  }): Promise<PaginatedResult<SQLExecuteLog>> => 
+    api.get('/db/execute-logs', params),
+  
+  // 获取特定SQL执行日志详情
+  getExecuteLogDetail: (logId: string): Promise<SQLExecuteLog> =>
+    api.get(`/db/execute-logs/${logId}`)
+};
 
 // 🔄 导出别名以保持向后兼容性
 export { api as apiService }

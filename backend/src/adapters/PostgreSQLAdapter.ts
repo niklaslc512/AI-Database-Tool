@@ -210,7 +210,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       const queryResult: QueryResult = {
         rows: result.rows,
         rowCount: result.rowCount || 0,
-        fields: this.mapFields(result.fields),
+        fields: result.fields ? this.mapFields(result.fields) : [],
         executionTime
       };
 
@@ -248,7 +248,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
         results.push({
           rows: result.rows,
           rowCount: result.rowCount || 0,
-          fields: this.mapFields(result.fields),
+          fields: result.fields ? this.mapFields(result.fields) : [],
           executionTime
         });
       }

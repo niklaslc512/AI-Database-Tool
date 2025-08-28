@@ -611,3 +611,129 @@ export const CONFIG_TYPES = {
   boolean: { name: '布尔值', color: 'warning' },
   json: { name: 'JSON', color: 'info' }
 } as const;
+
+/**
+ * 🤖 AI对话消息类型
+ */
+export type AIMessageType = 'user' | 'assistant';
+
+/**
+ * 🤖 AI对话消息状态
+ */
+export type AIMessageStatus = 'pending' | 'success' | 'error';
+
+/**
+ * 🤖 AI对话消息接口
+ */
+export interface AIConversationMessage {
+  id: string;
+  conversation_id: string;
+  user_id: string;
+  message_type: AIMessageType;
+  content: string;
+  sql_query?: string;
+  query_result?: any;
+  status: AIMessageStatus;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * 🤖 AI对话请求接口
+ */
+export interface AIChatRequest {
+  message: string;
+  conversation_id?: string;
+}
+
+/**
+ * 🤖 AI对话响应接口
+ */
+export interface AIChatResponse {
+  conversation_id: string;
+  user_message: AIConversationMessage;
+  ai_message: AIConversationMessage;
+}
+
+/**
+ * 🤖 AI对话历史参数
+ */
+export interface AIConversationHistoryParams {
+  conversation_id?: string;
+  limit?: number;
+  offset?: number;
+  status?: AIMessageStatus;
+}
+
+/**
+ * 🤖 AI对话历史响应
+ */
+export interface AIConversationHistoryResponse {
+  messages: AIConversationMessage[];
+  total: number;
+  has_more: boolean;
+}
+
+/**
+ * 🗄️ SQL查询执行请求
+ */
+export interface SQLExecuteRequest {
+  sql: string;
+  conversation_id?: string;
+}
+
+/**
+ * 🗄️ SQL查询执行响应
+ */
+export interface SQLExecuteResponse {
+  success: boolean;
+  data?: {
+    rows: Record<string, any>[];
+    columns: string[];
+    rowCount: number;
+    executionTime: number;
+    affectedRows?: number;
+  };
+  error?: string;
+  sql: string;
+  executionTime: number;
+}
+
+/**
+ * 🗄️ SQL执行日志
+ */
+export interface SQLExecuteLog {
+  id: string;
+  user_id: string;
+  database_connection_id: string;
+  conversation_id?: string;
+  sql_query: string;
+  execution_time: number;
+  rows_affected?: number;
+  status: 'success' | 'error';
+  error_message?: string;
+  result_preview?: string;
+  created_at: string;
+}
+
+/**
+ * 🎯 前端聊天消息接口（用于组件状态管理）
+ */
+export interface ChatMessage {
+  id: string;
+  type: AIMessageType;
+  content: string;
+  sql?: string;
+  result?: {
+    columns: string[];
+    rows: any[];
+    executionTime: number;
+    error?: string;
+    rowCount?: number;
+    affectedRows?: number;
+  };
+  status?: AIMessageStatus;
+  timestamp: Date;
+  loading?: boolean;
+}

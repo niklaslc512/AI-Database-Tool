@@ -103,22 +103,25 @@ async function initializeUsers(db: Database<sqlite3.Database, sqlite3.Statement>
         username: userData.username,
         email: userData.email,
         roles: userData.roles,
-        displayName: userData.displayName,
+        full_name: userData.displayName,
         status: userData.status
       });
       
+      // 将角色字符串转换为JSON数组格式
+      const rolesArray = userData.roles.split(',').map(role => role.trim());
+      const rolesJson = JSON.stringify(rolesArray);
+      
       await db.run(`
         INSERT INTO users (
-          id, username, email, password_hash, salt, roles, display_name, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          id, username, email, password_hash, full_name, roles, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `, [
         userData.id,         // 🆔 使用UUID格式的ID
         userData.username,
         userData.email,
         passwordHash,
-        salt,
-        userData.roles,      // 🎭 使用多角色字段
-        userData.displayName,
+        userData.displayName, // 🏷️ 映射到full_name字段
+        rolesJson,           // 🎭 转换为JSON数组格式
         userData.status
       ]);
 

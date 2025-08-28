@@ -226,7 +226,9 @@ export function createDatabaseRoutes(): Router {
 
                  // 🔄 返回响应
                 if (status === 'error') {
+                    // 直接返回原始数据库错误信息
                     res.status(400).json({
+                        success: false,
                         message: '查询执行失败',
                         error: errorMessage,
                         execution_time: executionTime

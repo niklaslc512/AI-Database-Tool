@@ -1,11 +1,11 @@
 import bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { 
-  User, 
-  CreateUserRequest, 
-  UpdateUserRequest, 
-  LoginRequest, 
+import {
+  User,
+  CreateUserRequest,
+  UpdateUserRequest,
+  LoginRequest,
   LoginResponse,
   UserRole,
   UserStatus,
@@ -72,7 +72,7 @@ export class UserService {
    * 执行查询语句，返回单个结果
    */
   private async executeQuery<T = any>(
-    sql: string, 
+    sql: string,
     params?: any[]
   ): Promise<T> {
     const db = await this.getDatabase();
@@ -83,7 +83,7 @@ export class UserService {
    * 执行查询语句，返回所有结果
    */
   private async executeAll<T = any>(
-    sql: string, 
+    sql: string,
     params?: any[]
   ): Promise<T[]> {
     const db = await this.getDatabase();
@@ -94,7 +94,7 @@ export class UserService {
    * 执行插入、更新或删除语句
    */
   private async executeRun(
-    sql: string, 
+    sql: string,
     params?: any[]
   ): Promise<any> {
     const db = await this.getDatabase();
@@ -126,10 +126,10 @@ export class UserService {
    */
   async createUser(userData: CreateUserRequest): Promise<User> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.info('🚀 开始创建用户', { username: userData.username });
-      
+
       // 检查用户名和邮箱是否已存在
       this.logger.debug('🔍 检查用户名和邮箱是否已存在');
       const existingUser = await this.executeQuery(`
@@ -147,10 +147,10 @@ export class UserService {
       const passwordHash = await bcrypt.hash(userData.password, salt);
 
       // 🎭 处理用户角色
-      const userRoles = userData.roles && userData.roles.length > 0 
+      const userRoles = userData.roles && userData.roles.length > 0
         ? RoleUtils.stringifyRoles(userData.roles)
         : 'guest';  // 默认角色为guest
-      
+
       this.logger.debug('🎭 设置用户角色', { roles: userRoles });
 
       // 插入用户数据
@@ -180,7 +180,7 @@ export class UserService {
       const userId = result.lastID?.toString() || '';
       this.logger.info('✅ 用户创建成功', { userId, username: userData.username });
       this.logger.performance('创建用户', startTime);
-      
+
       return this.getUserById(userId);
     } catch (error) {
       this.logger.error('❌ 用户创建失败', error as Error, { username: userData.username });
@@ -203,10 +203,10 @@ export class UserService {
    */
   async login(loginData: LoginRequest, clientInfo?: { ip?: string; userAgent?: string }): Promise<LoginResponse> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.info('🚀 开始用户登录', { username: loginData.username, ip: clientInfo?.ip });
-      
+
       // 查找用户
       this.logger.debug('🔍 查找用户信息');
       const user = await this.executeQuery(`
@@ -248,10 +248,10 @@ export class UserService {
         username: user.username,
         roles: userRoles  // 🎭 包含角色数组
       };
-      
+
       const secret = this.jwtSecret as string;
       const token = jwt.sign(payload, secret, { expiresIn: 86400 }); // 24小时
-      
+
       this.logger.debug('🔑 JWT令牌生成成功', { userId: user.id, roles: userRoles });
 
       const expiresAt = new Date();
@@ -406,9 +406,9 @@ export class UserService {
         ORDER BY ${sortBy} ${sortOrder.toUpperCase()}
         LIMIT ? OFFSET ?
       `;
-      
+
       const users = await this.executeAll(usersQuery, [...values, limit, offset]) as any[];
-      
+
       return {
         data: users.map(user => this.mapDbUserToUser(user)),
         pagination: {
@@ -467,8 +467,8 @@ export class UserService {
    * 记录登录日志
    */
   private async logLoginAttempt(
-    username: string, 
-    success: boolean, 
+    username: string,
+    success: boolean,
     failureReason?: string | null,
     clientInfo?: { ip?: string; userAgent?: string },
     userId?: string
@@ -481,11 +481,11 @@ export class UserService {
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
         [userId || null,
-        username,
+          username,
         clientInfo?.ip || null,
         clientInfo?.userAgent || null,
-        'password',
-        success,
+          'password',
+          success,
         failureReason || null]
       );
     } catch (error) {
@@ -499,7 +499,7 @@ export class UserService {
   private parseJwtExpiration(expiresIn: string): number {
     const unit = expiresIn.slice(-1);
     const value = parseInt(expiresIn.slice(0, -1));
-    
+
     switch (unit) {
       case 's': return value * 1000;
       case 'm': return value * 60 * 1000;
@@ -536,12 +536,12 @@ export class UserService {
       createdAt: new Date(dbUser.created_at),
       updatedAt: new Date(dbUser.updated_at)
     };
-    
+
     // 单独处理lastLoginAt属性
     if (dbUser.last_login_at) {
       user.lastLoginAt = new Date(dbUser.last_login_at);
     }
-    
+
     return user;
   }
 
@@ -552,14 +552,14 @@ export class UserService {
     try {
       const user = await this.getUserById(userId);
       const newRoles = RoleUtils.addRole(user.roles, role);
-      
+
       await this.executeRun(`
         UPDATE users SET roles = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
       `, [newRoles, userId]);
-      
+
       this.logger.info('✅ 添加用户角色成功', { userId, role, newRoles });
       this.logger.userAction(userId, '添加角色', { role, newRoles });
-      
+
       return this.getUserById(userId);
     } catch (error) {
       this.logger.error('❌ 添加用户角色失败', error as Error, { userId, role });
@@ -574,14 +574,14 @@ export class UserService {
     try {
       const user = await this.getUserById(userId);
       const newRoles = RoleUtils.removeRole(user.roles, role);
-      
+
       await this.executeRun(`
         UPDATE users SET roles = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
       `, [newRoles, userId]);
-      
+
       this.logger.info('✅ 移除用户角色成功', { userId, role, newRoles });
       this.logger.userAction(userId, '移除角色', { role, newRoles });
-      
+
       return this.getUserById(userId);
     } catch (error) {
       this.logger.error('❌ 移除用户角色失败', error as Error, { userId, role });
@@ -595,14 +595,14 @@ export class UserService {
   async setUserRoles(userId: string, roles: UserRole[]): Promise<User> {
     try {
       const rolesString = RoleUtils.stringifyRoles(roles);
-      
+
       await this.executeRun(`
         UPDATE users SET roles = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
       `, [rolesString, userId]);
-      
+
       this.logger.info('✅ 设置用户角色成功', { userId, roles: rolesString });
       this.logger.userAction(userId, '设置角色', { roles: rolesString });
-      
+
       return this.getUserById(userId);
     } catch (error) {
       this.logger.error('❌ 设置用户角色失败', error as Error, { userId, roles });

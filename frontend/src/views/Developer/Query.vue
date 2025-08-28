@@ -225,18 +225,41 @@
                </div>
               
               <!-- 对话历史 -->
-               <div v-for="(message, index) in chatHistory" :key="index" class="flex items-start gap-3 animate-slide-in" :class="message.type === 'user' ? 'flex-row-reverse' : ''">
+               <div v-for="(message, index) in messages" :key="index" class="flex items-start gap-3 animate-slide-in" :class="message.type === 'user' ? 'flex-row-reverse' : ''">
                  <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-md" :class="message.type === 'user' ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-blue-500 to-indigo-600'">
                    <span class="text-white text-sm">{{ message.type === 'user' ? '👤' : '🤖' }}</span>
                  </div>
                  <div class="rounded-lg p-3 max-w-md shadow-sm border transition-all duration-200 hover:shadow-md" :class="message.type === 'user' ? 'bg-gradient-to-r from-green-100 to-emerald-50 border-green-200' : 'bg-gradient-to-r from-gray-100 to-blue-50 border-gray-200'">
                    <p class="text-sm text-gray-800">{{ message.content }}</p>
-                   <div v-if="message.sql" class="mt-2 p-2 bg-gradient-to-r from-gray-800 to-gray-900 rounded text-green-400 font-mono text-xs shadow-inner">
-                     {{ message.sql }}
+                   <div v-if="message.sql" class="mt-2">
+                     <div class="p-2 bg-gradient-to-r from-gray-800 to-gray-900 rounded text-green-400 font-mono text-xs shadow-inner">
+                       {{ message.sql }}
+                     </div>
+                     <div v-if="!message.result" class="mt-2 flex gap-2">
+                       <button 
+                         class="btn btn-xs btn-success hover:scale-105 transition-all duration-200"
+                         @click="executeSQL(message.sql, index)"
+                         :disabled="isLoading"
+                       >
+                         <PlayIcon class="w-3 h-3 mr-1" />
+                         执行SQL
+                       </button>
+                       <button 
+                         class="btn btn-xs btn-outline btn-info hover:scale-105 transition-all duration-200"
+                         @click="copyToClipboard(message.sql)"
+                       >
+                         📋 复制
+                       </button>
+                     </div>
                    </div>
                   <div v-if="message.result" class="mt-2">
-                    <div v-if="message.result.error" class="text-red-600 text-xs">
-                      ❌ {{ message.result.error }}
+                    <div v-if="message.result.error" class="bg-red-50 border border-red-200 rounded-lg p-3 cursor-pointer hover:bg-red-100 transition-all duration-200" @click="copyErrorToInput(message.result)">
+                      <div class="text-red-600 text-xs font-medium mb-1">
+                        ❌ {{ message.result.error }}
+                      </div>
+                      <div class="text-blue-600 text-xs mt-2 flex items-center gap-1">
+                        📋 点击复制错误信息到输入框
+                      </div>
                     </div>
                     <div v-else-if="message.result.rows && message.result.rows.length > 0" class="text-xs text-gray-600">
                       ✅ 查询成功，返回 {{ message.result.rows.length }} 条记录
@@ -244,14 +267,14 @@
                         <table class="table table-zebra table-xs">
                           <thead>
                             <tr>
-                              <th v-for="column in message.result.columns" :key="column" class="text-xs">
+                              <th v-for="column in getColumnNames(message.result.columns)" :key="column" class="text-xs">
                                 {{ column }}
                               </th>
                             </tr>
                           </thead>
                           <tbody>
                             <tr v-for="(row, rowIndex) in message.result.rows.slice(0, 5)" :key="rowIndex">
-                              <td v-for="column in message.result.columns" :key="column" class="text-xs">
+                              <td v-for="column in getColumnNames(message.result.columns)" :key="column" class="text-xs">
                                 {{ row[column] }}
                               </td>
                             </tr>
@@ -259,16 +282,38 @@
                         </table>
                         <p v-if="message.result.rows.length > 5" class="text-xs text-gray-500 mt-1">... 还有 {{ message.result.rows.length - 5 }} 条记录</p>
                       </div>
+                      <!-- 显示列信息 -->
+                      <div class="mt-2 p-2 bg-gray-50 rounded text-xs">
+                        <div class="font-medium text-gray-700 mb-1">📊 列信息:</div>
+                        <div class="space-y-1">
+                          <div v-for="column in message.result.columns" :key="typeof column === 'object' ? (column as QueryColumnInfo).name : column" class="flex items-center gap-2">
+                              <span class="font-mono text-blue-600">{{ typeof column === 'object' ? (column as QueryColumnInfo).name : column }}</span>
+                              <span v-if="typeof column === 'object'" class="text-gray-500">类型: {{ (column as QueryColumnInfo).type }}</span>
+                              <span v-if="typeof column === 'object' && (column as QueryColumnInfo).length && (column as QueryColumnInfo).length > 0" class="text-gray-500">长度: {{ (column as QueryColumnInfo).length }}</span>
+                            </div>
+                        </div>
+                      </div>
                     </div>
                     <div v-else class="text-green-600 text-xs">
                       ✅ 查询执行成功
+                      <!-- 显示列信息（即使没有数据行） -->
+                      <div v-if="message.result.columns && message.result.columns.length > 0" class="mt-2 p-2 bg-gray-50 rounded text-xs">
+                        <div class="font-medium text-gray-700 mb-1">📊 列信息:</div>
+                        <div class="space-y-1">
+                          <div v-for="column in message.result.columns" :key="typeof column === 'object' ? (column as QueryColumnInfo).name : column" class="flex items-center gap-2">
+                              <span class="font-mono text-blue-600">{{ typeof column === 'object' ? (column as QueryColumnInfo).name : column }}</span>
+                              <span v-if="typeof column === 'object'" class="text-gray-500">类型: {{ (column as QueryColumnInfo).type }}</span>
+                              <span v-if="typeof column === 'object' && (column as QueryColumnInfo).length && (column as QueryColumnInfo).length > 0" class="text-gray-500">长度: {{ (column as QueryColumnInfo).length }}</span>
+                            </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
               
               <!-- 加载状态 -->
-              <div v-if="executing" class="flex items-start gap-3">
+              <div v-if="isLoading" class="flex items-start gap-3">
                 <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
                   <span class="text-white text-sm">🤖</span>
                 </div>
@@ -295,11 +340,11 @@
                  </div>
                  <button 
                    class="btn btn-primary px-6 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-                   :disabled="!userInput.trim() || executing"
+                   :disabled="!userInput.trim() || isLoading"
                    @click="handleSendMessage"
                  >
                    <PlayIcon class="w-4 h-4 mr-1" />
-                   {{ executing ? '发送中...' : '发送' }}
+                   {{ isLoading ? '发送中...' : '发送' }}
                  </button>
                </div>
                <div class="flex items-center justify-between mt-2">
@@ -325,7 +370,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { 
   TableCellsIcon, 
   ChevronRightIcon,
@@ -333,40 +378,46 @@ import {
   TrashIcon,
   PlusIcon
 } from '@heroicons/vue/24/outline'
-import type { DatabaseConnection, TableInfo, ColumnInfo } from '@/types'
-import { connectionApi, databaseApi, api } from '@/utils/api'
+import { connectionApi, databaseApi, aiApi, sqlApi } from '@/utils/api'
+import type { 
+  DatabaseConnection, 
+  TableInfo, 
+  ColumnInfo, 
+  ChatMessage
+} from '@/types'
+
+interface QueryColumnInfo {
+  name: string
+  type: number
+  length: number
+}
 
 interface QueryResult {
-  columns: string[]
+  columns: string[] | QueryColumnInfo[]
   rows: any[]
   executionTime: number
+  rowCount: number
+  affectedRows: number
   error?: string
 }
 
 interface ExtendedTableInfo extends TableInfo {
   columns?: ColumnInfo[]
 }
-
+// 响应式数据
 const connections = ref<DatabaseConnection[]>([])
 const selectedConnection = ref<DatabaseConnection | null>(null)
 const tables = ref<ExtendedTableInfo[]>([])
 const selectedTable = ref<ExtendedTableInfo | null>(null)
 const userInput = ref('')
-const chatHistory = ref<ChatMessage[]>([])
-const executing = ref(false)
+const messages = ref<ChatMessage[]>([])
+const isLoading = ref(false)
+const currentConversationId = ref<string | null>(null)
 
 const loading = ref({
   connections: false,
   tables: false
 })
-
-interface ChatMessage {
-  type: 'user' | 'assistant'
-  content: string
-  sql?: string
-  result?: QueryResult
-  timestamp: Date
-}
 
 // 加载连接列表
 const loadConnections = async () => {
@@ -441,94 +492,191 @@ const insertSampleQuery = (type: string) => {
 
 // 清空对话
 const clearChat = () => {
-  chatHistory.value = []
+  messages.value = []
+  currentConversationId.value = null
+}
+
+// 滚动到底部
+const scrollToBottom = () => {
+  setTimeout(() => {
+    const chatContainer = document.querySelector('.overflow-y-auto')
+    if (chatContainer) {
+      chatContainer.scrollTop = chatContainer.scrollHeight
+    }
+  }, 100)
 }
 
 // 处理发送消息
 const handleSendMessage = async () => {
-  if (!userInput.value.trim() || !selectedConnection.value || executing.value) return
+  if (!userInput.value.trim() || !selectedConnection.value || isLoading.value) return
   
   const userMessage: ChatMessage = {
+    id: Date.now().toString(),
     type: 'user',
     content: userInput.value.trim(),
     timestamp: new Date()
   }
   
-  chatHistory.value.push(userMessage)
+  messages.value.push(userMessage)
   const currentInput = userInput.value.trim()
   userInput.value = ''
   
-  executing.value = true
+  isLoading.value = true
   
   try {
-    // 这里应该调用AI服务来生成SQL，暂时使用简单的规则
-    const sql = generateSQLFromNaturalLanguage(currentInput)
-    
-    const assistantMessage: ChatMessage = {
-      type: 'assistant',
-      content: `我理解你想要：${currentInput}。让我为你生成SQL查询：`,
-      sql: sql,
-      timestamp: new Date()
-    }
-    
-    chatHistory.value.push(assistantMessage)
-    
-    // 执行SQL查询
-    const response = await api.post(`/db/${selectedConnection.value.id}/query`, {
-      sql: sql
-    })
-    
-    assistantMessage.result = response
+      // 调用AI对话接口
+      const aiResponse = await aiApi.chat(selectedConnection.value.id, {
+        message: currentInput,
+        conversation_id: currentConversationId.value || undefined
+      })
+      
+      // 更新当前对话ID
+      if (!currentConversationId.value) {
+        currentConversationId.value = aiResponse.conversation_id
+      }
+      
+      const assistantMessage: ChatMessage = {
+        id: `ai_${Date.now()}`,
+        type: 'assistant',
+        content: aiResponse.reply,
+        sql: aiResponse.sql,
+        timestamp: new Date(),
+        status: 'success'
+      }
+      
+      messages.value.push(assistantMessage)
     
   } catch (error: any) {
-    const errorMessage: ChatMessage = {
-      type: 'assistant',
-      content: '抱歉，查询执行时出现了错误。',
-      result: {
-        columns: [],
-        rows: [],
-        executionTime: 0,
-        error: error.message || '查询执行失败'
-      },
-      timestamp: new Date()
+    console.error('❌ AI对话失败:', error)
+    
+    let errorContent = '抱歉，AI对话失败了'
+    if (error.response?.status === 401) {
+      errorContent = '🔐 认证失败，请检查登录状态'
+    } else if (error.response?.status === 403) {
+      errorContent = '🚫 权限不足，无法访问该数据库'
+    } else if (error.response?.status === 404) {
+      errorContent = '❓ 数据库连接不存在'
+    } else if (error.response?.status >= 500) {
+      errorContent = '🔧 服务器内部错误，请稍后重试'
+    } else if (error.message) {
+      errorContent = `❌ ${error.message}`
     }
     
-    chatHistory.value.push(errorMessage)
+    const errorMessage: ChatMessage = {
+      id: `error_${Date.now()}`,
+      type: 'assistant',
+      content: errorContent,
+      timestamp: new Date(),
+      status: 'error'
+    }
+    
+    messages.value.push(errorMessage)
   } finally {
-    executing.value = false
-    // 滚动到底部
+      isLoading.value = false
+      await nextTick()
+      scrollToBottom()
+    }
+}
+
+// 检查SQL是否可能影响数据库结构
+const isDDLStatement = (sql: string): boolean => {
+  const ddlKeywords = ['CREATE', 'DROP', 'ALTER', 'RENAME', 'TRUNCATE']
+  const upperSQL = sql.trim().toUpperCase()
+  return ddlKeywords.some(keyword => upperSQL.startsWith(keyword))
+}
+
+// 获取列名数组（兼容新旧格式）
+const getColumnNames = (columns: string[] | QueryColumnInfo[]): string[] => {
+  if (!columns || columns.length === 0) return []
+  
+  // 如果是新格式（对象数组），提取name字段
+  if (typeof columns[0] === 'object' && 'name' in columns[0]) {
+    return (columns as QueryColumnInfo[]).map(col => col.name)
+  }
+  
+  // 如果是旧格式（字符串数组），直接返回
+  return columns as string[]
+}
+
+// 执行SQL
+const executeSQL = async (sql: string, messageIndex: number) => {
+  if (!selectedConnection.value || isLoading.value) return
+  
+  isLoading.value = true
+  
+  try {
+    const response = await sqlApi.executeQuery(selectedConnection.value.id, {
+      sql: sql,
+      conversation_id: currentConversationId.value || undefined
+    })
+    
+    // 更新对应消息的结果
+    messages.value[messageIndex].result = {
+      columns: response.columns || [],
+      rows: response.data || [],
+      executionTime: response.execution_time || 0,
+      rowCount: response.data?.length || 0,
+      affectedRows: response.rows_affected || 0
+    }
+    
+    // 🔄 如果SQL可能影响数据库结构，刷新表列表
+    if (selectedConnection.value && isDDLStatement(sql)) {
+      console.log('🔄 检测到DDL语句，刷新数据库结构...')
+      await loadTables()
+      // 如果当前选中的表可能被影响，清空选中状态
+      if (selectedTable.value) {
+        const tableStillExists = tables.value.find(t => t.name === selectedTable.value?.name)
+        if (!tableStillExists) {
+          selectedTable.value = null
+        }
+      }
+    }
+    
+  } catch (sqlError: any) {
+    console.error('SQL execution failed:', sqlError)
+    const errorData = sqlError.response?.data || {}
+    messages.value[messageIndex].result = {
+      columns: [],
+      rows: [],
+      executionTime: errorData.execution_time || 0,
+      rowCount: 0,
+      affectedRows: 0,
+      error: errorData.error || errorData.message || sqlError.message || 'SQL执行失败'
+    }
+  } finally {
+    isLoading.value = false
+    await nextTick()
+    scrollToBottom()
+  }
+}
+
+// 复制到剪贴板
+const copyToClipboard = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    // 可以添加一个提示消息
+    console.log('SQL已复制到剪贴板')
+  } catch (error) {
+    console.error('复制失败:', error)
+  }
+}
+
+// 复制错误信息到输入框
+const copyErrorToInput = (result: any) => {
+  if (result.error) {
+    userInput.value = result.error
+    // 滚动到输入框
     setTimeout(() => {
-      const chatContainer = document.querySelector('.overflow-y-auto')
-      if (chatContainer) {
-        chatContainer.scrollTop = chatContainer.scrollHeight
+      const textarea = document.querySelector('textarea')
+      if (textarea) {
+        textarea.focus()
+        textarea.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }
     }, 100)
   }
 }
 
-// 简单的自然语言转SQL（实际项目中应该使用AI服务）
-const generateSQLFromNaturalLanguage = (input: string): string => {
-  const lowerInput = input.toLowerCase()
-  
-  if (selectedTable.value) {
-    const tableName = selectedTable.value.name
-    
-    if (lowerInput.includes('查看') || lowerInput.includes('显示') || lowerInput.includes('所有数据')) {
-      return `SELECT * FROM ${tableName} LIMIT 10;`
-    }
-    
-    if (lowerInput.includes('结构') || lowerInput.includes('字段') || lowerInput.includes('表结构')) {
-      return `DESCRIBE ${tableName};`
-    }
-    
-    if (lowerInput.includes('数量') || lowerInput.includes('总数') || lowerInput.includes('count')) {
-      return `SELECT COUNT(*) as total_count FROM ${tableName};`
-    }
-  }
-  
-  // 默认查询
-  return selectedTable.value ? `SELECT * FROM ${selectedTable.value.name} LIMIT 10;` : 'SELECT 1;'
-}
+
 
 onMounted(() => {
   loadConnections()

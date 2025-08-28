@@ -18,7 +18,15 @@ const consoleFormat = winston.format.combine(
     format: 'YYYY-MM-DD HH:mm:ss'
   }),
   winston.format.printf((info) => {
-    return `${info.timestamp} [${info.level}]: ${info.message}`;
+    // 🔍 提取额外的数据对象
+    const { timestamp, level, message, service, ...meta } = info;
+    
+    // 🎯 如果有额外的元数据，将其格式化显示
+    const metaStr = Object.keys(meta).length > 0 
+      ? ` ${JSON.stringify(meta, null, 2)}`
+      : '';
+    
+    return `${timestamp} [${level}]: ${message}${metaStr}`;
   })
 );
 

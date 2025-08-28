@@ -58,11 +58,11 @@
     <!-- 📋 主要内容区域 -->
     <div class="flex-1 flex flex-col overflow-hidden min-h-0">
       <div
-        class="bg-white/70 backdrop-blur-sm flex flex-col shadow-lg overflow-hidden min-h-0 rounded-xl border border-white/20 mx-6 mb-6">
+        class="bg-white/70 backdrop-blur-sm flex flex-col shadow-lg overflow-hidden min-h-0 rounded-xl border border-white/20">
         <!-- 表格内容 -->
         <div class="flex-1 overflow-y-auto min-h-0 p-6">
           <div class="overflow-x-auto">
-            <table class="w-full">
+            <table class="table w-full">
               <thead class="bg-gray-50 sticky top-0">
                 <tr class="text-gray-700">
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">配置键</th>
